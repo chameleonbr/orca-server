@@ -1,0 +1,33 @@
+# Secrets and local env
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Runtime data (HOME, workspace — may contain credentials)
+data/home/**
+!data/home/.gitkeep
+data/workspace/**
+!data/workspace/.gitkeep
+data/**
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Build artifacts
+*.AppImage
+squashfs-root/
+tmp/
+.cache/

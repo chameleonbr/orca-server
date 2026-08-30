@@ -1,0 +1,86 @@
+# Orca remote workstation: Tailscale sidecar + orca-dev sharing net namespace.
+# No host port publishing by default — access via Tailnet / MagicDNS.
+
+services:
+  tailscale:
+    image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
+    container_name: orca-tailscale
+    hostname: ${TAILSCALE_HOSTNAME:-orca-dev}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "false"
+      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-orca-dev}
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: unless-stopped
+    # Prefer official health mechanism when available; placeholder:
+    healthcheck:
+      test: ["CMD-SHELL", "tailscale status --json >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  orca:
+    build:
+      context: .
+      args:
+        ORCA_VERSION: ${ORCA_VERSION:-1.4.185}
+        ORCA_SHA256: ${ORCA_SHA256:-}
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+        MISE_VERSION: ${MISE_VERSION:-}
+        NODE_VERSION: ${NODE_VERSION:-22}
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.13}
+        UV_VERSION: ${UV_VERSION:-latest}
+        INSTALL_CLAUDE: ${INSTALL_CLAUDE:-true}
+        INSTALL_CODEX: ${INSTALL_CODEX:-true}
+        INSTALL_GEMINI: ${INSTALL_GEMINI:-true}
+        INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
+        INSTALL_OPENCODE: ${INSTALL_OPENCODE:-true}
+        INSTALL_GROK: ${INSTALL_GROK:-false}
+        INSTALL_HERMES: ${INSTALL_HERMES:-false}
+        INSTALL_QWEN: ${INSTALL_QWEN:-false}
+        INSTALL_KIMI: ${INSTALL_KIMI:-false}
+    image: orca-server:local
+    container_name: orca-server
+    network_mode: "service:tailscale"
+    depends_on:
+      tailscale:
+        condition: service_healthy
+    environment:
+      HOME: /home/orca
+      ORCA_PORT: ${ORCA_PORT:-6768}
+      ORCA_PAIRING_ADDRESS: ${ORCA_PAIRING_ADDRESS:-}
+      AUTO_UPDATE_AGENTS: ${AUTO_UPDATE_AGENTS:-false}
+      TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-orca-dev}
+    volumes:
+      - orca-home:/home/orca
+      - workspace:/workspace
+      # Local bind mounts alternative (uncomment if preferred over named volumes):
+      # - ./data/home:/home/orca
+      # - ./data/workspace:/workspace
+    restart: unless-stopped
+    # No ports: section — Tailnet only
+    # Orca itself is NOT privileged
+
+  # Optional: mount host Docker socket (equivalent to root on host — explicit opt-in)
+  orca-docker-access:
+    profiles: ["docker-access"]
+    extends:
+      service: orca
+    container_name: orca-server-docker
+    volumes:
+      - orca-home:/home/orca
+      - workspace:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  tailscale-state:
+  orca-home:
+  workspace:

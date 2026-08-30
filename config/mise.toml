@@ -1,0 +1,26 @@
+# Base mise config shipped with the image.
+# Copied to the user HOME on first boot if missing — never overwrites existing custom config.
+
+[tools]
+node = "22"
+python = "3.13"
+uv = "latest"
+
+[settings]
+experimental = true
+# Ensure shims work in non-interactive shells
+yes = true
+
+# --- agent maintenance tasks (implemented in later phases) ---
+
+[tasks."agents:doctor"]
+description = "Check installed AI CLIs and runtimes"
+run = "/scripts/doctor.sh"
+
+[tasks."agents:versions"]
+description = "Print runtime and agent versions"
+run = "/scripts/versions.sh"
+
+[tasks."agents:update"]
+description = "Update AI CLIs via official mechanisms (no image rebuild)"
+run = "echo 'agents:update not implemented yet — see docs/IMPLEMENTATION_PLAN.md §71'"
