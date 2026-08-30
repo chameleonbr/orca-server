@@ -83,18 +83,21 @@ install_cursor() {
 
 install_opencode() {
   truthy "${INSTALL_OPENCODE:-true}" || { log "SKIP OpenCode"; return 0; }
-  if [[ -n "${OPENCODE_INSTALL_URL:-}" ]]; then
-    log "Installing OpenCode from OPENCODE_INSTALL_URL"
-    curl -fsSL "${OPENCODE_INSTALL_URL}" | bash
+  # Official installer: https://opencode.ai/install  · npm: opencode-ai
+  local url="${OPENCODE_INSTALL_URL:-https://opencode.ai/install}"
+  log "Installing OpenCode from ${url}"
+  if curl -fsSL "${url}" | bash; then
+    if [[ -x "${HOME}/.opencode/bin/opencode" ]]; then
+      ln -sf "${HOME}/.opencode/bin/opencode" "${HOME}/.local/bin/opencode"
+    fi
+    verify_bin opencode || true
+    return 0
+  fi
+  if need_npm; then
+    install_pkg_npm opencode "opencode-ai" "${OPENCODE_VERSION:-}" || warn "OpenCode npm install failed"
     verify_bin opencode || true
   else
-    # Try common official npm name only if documented; otherwise skip cleanly
-    if need_npm && npm view opencode >/dev/null 2>&1; then
-      install_pkg_npm opencode "opencode" "${OPENCODE_VERSION:-}" || warn "OpenCode npm install failed"
-      verify_bin opencode || true
-    else
-      warn "OpenCode: official install method not configured — skipped"
-    fi
+    warn "OpenCode: install failed"
   fi
 }
 

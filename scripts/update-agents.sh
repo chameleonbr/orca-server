@@ -108,17 +108,28 @@ update_cursor() {
 
 update_opencode() {
   truthy "${INSTALL_OPENCODE:-true}" || { log "SKIP OpenCode (disabled)"; return 0; }
-  if [[ -n "${OPENCODE_INSTALL_URL:-}" ]]; then
-    log "Updating OpenCode via OPENCODE_INSTALL_URL"
-    curl -fsSL "${OPENCODE_INSTALL_URL}" | bash || return 1
-    record "opencode" "?" "$(bin_ver opencode)" "ok"
+  # Official: https://opencode.ai/docs — installer or npm package opencode-ai
+  local url="${OPENCODE_INSTALL_URL:-https://opencode.ai/install}"
+  if [[ -n "${url}" ]]; then
+    local old
+    old="$(bin_ver opencode)"
+    log "Updating OpenCode via ${url}"
+    if curl -fsSL "${url}" | bash; then
+      hash -r 2>/dev/null || true
+      # installer often puts bin in ~/.opencode/bin — link into ~/.local/bin
+      if [[ -x "${HOME}/.opencode/bin/opencode" ]] && [[ ! -e "${HOME}/.local/bin/opencode" ]]; then
+        ln -sf "${HOME}/.opencode/bin/opencode" "${HOME}/.local/bin/opencode"
+      fi
+      record "opencode" "${old:-none}" "$(bin_ver opencode || echo present)" "ok"
+      return 0
+    fi
+    warn "OpenCode installer failed — trying npm opencode-ai"
+  fi
+  if need_npm; then
+    npm_install_or_update "opencode" "opencode-ai" "opencode" "${OPENCODE_VERSION:-}" || true
     return 0
   fi
-  if need_npm && npm view opencode >/dev/null 2>&1; then
-    npm_install_or_update "opencode" "opencode" "opencode" "${OPENCODE_VERSION:-}" || true
-    return 0
-  fi
-  log "SKIP OpenCode (no official method configured)"
+  log "SKIP OpenCode (no method worked)"
   return 0
 }
 

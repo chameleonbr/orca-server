@@ -2,7 +2,7 @@
 
 Workstation remota de desenvolvimento com **Orca Server** headless, **mise**, agentes de IA e acesso privado via **Tailscale sidecar**.
 
-> Status: Fase A–C em andamento. Orca **atualizável sem rebuild** da imagem.
+> Status: Fases A–E operacionais no host `dhh` (Tailscale `orca-dev` + mup in-container + agents no volume).
 
 ## O que é
 
@@ -270,8 +270,8 @@ Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 | B | mise (Node, Python, uv) | done |
 | C | Orca runtime no volume + update-orca | done |
 | D | Tailscale sidecar + portas dinâmicas | compose ready |
-| E | Agentes + **mup** + schedule **in-container** | done |
-| F | agents:update refinado / canais | partial (via mup) |
+| E | Agentes + **mup** + schedule **in-container** | done (claude/codex/gemini/opencode no volume) |
+| F | agents:update refinado / Cursor oficial | Cursor pending URL oficial |
 | G | Agentes opcionais | pending |
 | H | Hardening final | pending |
 
