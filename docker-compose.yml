@@ -73,6 +73,10 @@ services:
       AUTO_UPDATE_AGENTS: ${AUTO_UPDATE_AGENTS:-false}
       TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-orca-dev}
       LIBGL_ALWAYS_SOFTWARE: "1"
+      # Git identity (also applied by entrypoint → ~/.gitconfig on volume)
+      GIT_USER_NAME: ${GIT_USER_NAME:-}
+      GIT_USER_EMAIL: ${GIT_USER_EMAIL:-}
+      GIT_INIT_DEFAULT_BRANCH: ${GIT_INIT_DEFAULT_BRANCH:-main}
       INSTALL_CLAUDE: ${INSTALL_CLAUDE:-true}
       INSTALL_CODEX: ${INSTALL_CODEX:-true}
       INSTALL_GEMINI: ${INSTALL_GEMINI:-true}

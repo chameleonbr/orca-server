@@ -213,6 +213,9 @@ Ver [`.env.example`](.env.example).
 | `MUP_ON_BOOT` | `mup` no start do container (`false`) |
 | `TZ` | Fuso do schedule |
 | `AUTO_UPDATE_ALL` | Alias de boot mup (`false`) |
+| `GIT_USER_NAME` | `git config user.name` no boot |
+| `GIT_USER_EMAIL` | `git config user.email` no boot |
+| `GIT_INIT_DEFAULT_BRANCH` | default `main` |
 | `TS_AUTHKEY` | Auth key do Tailscale |
 | `TAILSCALE_HOSTNAME` | MagicDNS name (default `orca-dev`) |
 | `INSTALL_*` | Liga/desliga cada agente no build / mup |

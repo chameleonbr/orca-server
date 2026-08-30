@@ -53,6 +53,16 @@ else
 fi
 
 check_cmd "git" git 1 || rc=1
+if command -v git >/dev/null 2>&1; then
+  gname="$(git config --global user.name 2>/dev/null || true)"
+  gemail="$(git config --global user.email 2>/dev/null || true)"
+  if [[ -n "${gname}" && -n "${gemail}" ]]; then
+    ok "git identity: ${gname} <${gemail}>"
+  else
+    fail "git user.name/email unset — set GIT_USER_NAME and GIT_USER_EMAIL"
+    rc=1
+  fi
+fi
 check_cmd "gh" gh 0 || true
 check_cmd "mise" mise 1 || rc=1
 check_cmd "node (mise)" node 1 || rc=1

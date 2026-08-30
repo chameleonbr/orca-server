@@ -35,6 +35,34 @@ if [[ -d "${HOME}/.ssh" ]]; then
   find "${HOME}/.ssh" -type f -exec chmod 600 {} \; 2>/dev/null || true
 fi
 
+# 3b. Git identity from env (defaults applied every boot when set)
+# GIT_USER_NAME / GIT_USER_EMAIL are canonical; GIT_AUTHOR_* also accepted.
+configure_git() {
+  if ! command -v git >/dev/null 2>&1; then
+    log "WARN: git not installed"
+    return 0
+  fi
+  local name="${GIT_USER_NAME:-${GIT_AUTHOR_NAME:-}}"
+  local email="${GIT_USER_EMAIL:-${GIT_AUTHOR_EMAIL:-}}"
+  # Always ensure safe.directory for workspace (volume / bind mounts)
+  git config --global --add safe.directory /workspace 2>/dev/null || true
+  git config --global --add safe.directory '*' 2>/dev/null || true
+  git config --global init.defaultBranch "${GIT_INIT_DEFAULT_BRANCH:-main}" 2>/dev/null || true
+  if [[ -n "${name}" ]]; then
+    git config --global user.name "${name}"
+    log "git user.name=${name}"
+  else
+    log "git user.name unset (set GIT_USER_NAME)"
+  fi
+  if [[ -n "${email}" ]]; then
+    git config --global user.email "${email}"
+    log "git user.email=${email}"
+  else
+    log "git user.email unset (set GIT_USER_EMAIL)"
+  fi
+}
+configure_git
+
 # 4. Ensure Orca runtime in persistent volume
 # shellcheck source=/dev/null
 source /scripts/lib-orca.sh
