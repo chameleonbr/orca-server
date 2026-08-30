@@ -2,7 +2,16 @@
 
 Workstation remota de desenvolvimento com **Orca Server** headless, **mise**, agentes de IA e acesso privado via **Tailscale sidecar**.
 
-> Status: Fases A–E operacionais no host `dhh` (Tailscale `orca-dev` + mup in-container + agents no volume).
+> Status: Fases A–E + **pair Desktop OK** no host `dhh` (`orca-dev`). Próximo: contas dos agents no runtime remoto.
+
+## Pós-pair — accounts
+
+Depois do pair, autentique os agents **no servidor** (credenciais no volume):
+
+- UI do Orca Desktop no runtime remoto, ou
+- `docker compose exec orca bash` → `claude` / `codex login` / `gemini` / `opencode`
+
+Detalhes: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## O que é
 
@@ -269,11 +278,11 @@ Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 | A | Docker base (Debian Slim, Electron libs, user) | done |
 | B | mise (Node, Python, uv) | done |
 | C | Orca runtime no volume + update-orca | done |
-| D | Tailscale sidecar + portas dinâmicas | compose ready |
-| E | Agentes + **mup** + schedule **in-container** | done (claude/codex/gemini/opencode no volume) |
-| F | agents:update refinado / Cursor oficial | Cursor pending URL oficial |
+| D | Tailscale sidecar + portas dinâmicas | **done** (pair OK) |
+| E | Agentes + **mup** + schedule **in-container** | **done** (claude/codex/gemini/opencode) |
+| F | accounts no host + Cursor oficial | **in progress** (pair done → login agents) |
 | G | Agentes opcionais | pending |
-| H | Hardening final | pending |
+| H | Hardening final + teste portas dinâmicas formal | pending |
 
 ## Upgrade
 
