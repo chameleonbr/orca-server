@@ -8,11 +8,11 @@ id_rsa*
 id_ed25519*
 
 # Runtime data (HOME, workspace — may contain credentials)
-data/home/**
-!data/home/.gitkeep
-data/workspace/**
-!data/workspace/.gitkeep
-data/**
+/data/**
+!/data/home/
+!/data/home/.gitkeep
+!/data/workspace/
+!/data/workspace/.gitkeep
 
 # Docker
 *.log
