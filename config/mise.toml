@@ -8,10 +8,23 @@ uv = "latest"
 
 [settings]
 experimental = true
-# Ensure shims work in non-interactive shells
 yes = true
 
-# --- agent maintenance tasks (implemented in later phases) ---
+# --- Orca runtime (updatable without image rebuild) ---
+
+[tasks."orca:update"]
+description = "Download/upgrade Orca AppImage into persistent HOME (no image rebuild)"
+run = "/scripts/update-orca.sh"
+
+[tasks."orca:status"]
+description = "Show installed Orca version and install path"
+run = "/scripts/update-orca.sh --status"
+
+[tasks."orca:rollback"]
+description = "Roll back to previous Orca extract"
+run = "/scripts/update-orca.sh --rollback"
+
+# --- agent maintenance ---
 
 [tasks."agents:doctor"]
 description = "Check installed AI CLIs and runtimes"
@@ -23,4 +36,4 @@ run = "/scripts/versions.sh"
 
 [tasks."agents:update"]
 description = "Update AI CLIs via official mechanisms (no image rebuild)"
-run = "echo 'agents:update not implemented yet — see docs/IMPLEMENTATION_PLAN.md §71'"
+run = "echo 'agents:update: implement per-agent updaters (Phase F) — see docs/IMPLEMENTATION_PLAN.md §71'"

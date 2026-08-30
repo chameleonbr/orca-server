@@ -1,0 +1,14 @@
+# Local smoke test without Tailscale (host networking / published port)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+
+services:
+  tailscale:
+    profiles: ["tailscale"]
+
+  orca:
+    network_mode: bridge
+    depends_on: []
+    ports:
+      - "${ORCA_PORT:-6768}:6768"
+    environment:
+      ORCA_PAIRING_ADDRESS: ${ORCA_PAIRING_ADDRESS:-127.0.0.1}

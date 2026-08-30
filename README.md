@@ -2,7 +2,7 @@
 
 Workstation remota de desenvolvimento com **Orca Server** headless, **mise**, agentes de IA e acesso privado via **Tailscale sidecar**.
 
-> Status: scaffold inicial baseado no [plano de implementação](docs/IMPLEMENTATION_PLAN.md). Implementação por fases.
+> Status: Fase A–C em andamento. Orca **atualizável sem rebuild** da imagem.
 
 ## O que é
 
@@ -21,14 +21,63 @@ Notebook/Desktop (Orca IDE)
 └────────────────┘
 ```
 
-Características-alvo:
+Características:
 
 - Debian Slim (sem Ubuntu/Alpine)
-- Orca headless (AppImage extraído, sem FUSE / sem `--privileged`)
+- Orca headless (AppImage extraído, **sem FUSE** / **sem `--privileged`**)
+- **Orca runtime no volume HOME** — upgrade sem remontar a imagem
 - mise para Node/Python/uv e atualização de AI CLIs sem rebuild
 - Tailscale sidecar + `network_mode: service:tailscale`
 - HOME e workspace persistentes
 - Sem Docker socket e sem exposição pública por padrão
+
+## Orca atualiza sem rebuild
+
+O headless **não tem auto-updater** (só o desktop GUI). Por isso o AppImage **não fica “congelado” na imagem**:
+
+| Camada | O que guarda |
+|--------|----------------|
+| **Imagem Docker** | Debian, libs Electron, mise, scripts, agentes base |
+| **Volume `orca-home`** | `~/.local/share/orca/` (AppImage extraído) + credenciais + mise data + `~/.config` |
+
+### Atualizar Orca
+
+```bash
+# ver versão atual
+docker compose exec orca /scripts/update-orca.sh --status
+# ou
+docker compose exec orca mise run orca:status
+
+# subir para latest (ou pin: 1.4.192)
+docker compose exec orca /scripts/update-orca.sh latest
+# ou
+docker compose exec orca mise run orca:update
+
+# aplicar o binário novo
+docker compose restart orca
+
+# se der ruim — volta a versão anterior extraída
+docker compose exec orca /scripts/update-orca.sh --rollback
+docker compose restart orca
+```
+
+No primeiro boot, se o volume ainda não tiver Orca, o entrypoint baixa sozinho (~200 MB) para o volume.
+
+Opcional no `.env`:
+
+```text
+ORCA_VERSION=latest          # ou 1.4.192
+AUTO_UPDATE_ORCA=false         # true = tenta atualizar a cada start
+ORCA_SEED_IN_IMAGE=false     # true = já embute um seed no build (ainda atualizável no volume)
+```
+
+Fonte oficial do binário:
+
+```text
+https://github.com/stablyai/orca/releases/latest/download/orca-linux.AppImage
+```
+
+Estado (pairing, projetos) fica em `~/.config/{orca,Orca}` — **independente do binário**. Trocar o AppImage não desfaz o pair.
 
 ## Agentes previstos
 
@@ -51,11 +100,11 @@ Características-alvo:
 - Auth key Tailscale (scoped) para o sidecar
 - Orca Desktop no cliente para pairing
 
-## Quick start (quando a imagem estiver pronta)
+## Quick start
 
 ```bash
 cp .env.example .env
-# editar: TS_AUTHKEY, ORCA_PAIRING_ADDRESS (ou deixar descoberta via Tailscale)
+# editar: TS_AUTHKEY, ORCA_PAIRING_ADDRESS (IP/hostname Tailscale — não use 0.0.0.0)
 
 docker compose build
 docker compose up -d
@@ -68,6 +117,15 @@ Pairing no Orca Desktop:
 Settings → Remote Orca Servers → Add Server → colar pairing URL dos logs
 ```
 
+Os logs devem mostrar algo como:
+
+```text
+Orca server ready
+Bound endpoint: ws://0.0.0.0:6768
+Advertised endpoint: ws://orca-dev:6768
+Pairing URL: orca://pair?code=...
+```
+
 Autenticar agentes:
 
 ```bash
@@ -75,7 +133,6 @@ docker compose exec orca bash
 claude
 codex
 gemini
-# ...
 orca account add --agent claude
 orca account list
 ```
@@ -86,21 +143,20 @@ Diagnóstico:
 docker compose exec orca /scripts/doctor.sh
 docker compose exec orca /scripts/versions.sh
 docker compose exec orca /scripts/ports.sh
-mise run agents:doctor
-mise run agents:update   # atualiza CLIs sem rebuild
+docker compose exec orca mise run orca:status
+docker compose exec orca mise run agents:doctor
 ```
 
 ## Configuration
 
 Ver [`.env.example`](.env.example).
 
-Principais variáveis:
-
 | Variável | Descrição |
 |----------|-----------|
-| `ORCA_VERSION` | Versão pinada do Orca AppImage |
+| `ORCA_VERSION` | Tag pinada ou `latest` (default) |
 | `ORCA_PORT` | Porta do server (default `6768`) |
-| `ORCA_PAIRING_ADDRESS` | IP/hostname anunciado no pairing (Tailscale) |
+| `ORCA_PAIRING_ADDRESS` | Host/IP anunciado no pairing (Tailscale) |
+| `AUTO_UPDATE_ORCA` | Atualiza Orca no boot (`false` por padrão) |
 | `TS_AUTHKEY` | Auth key do Tailscale |
 | `TAILSCALE_HOSTNAME` | MagicDNS name (default `orca-dev`) |
 | `AUTO_UPDATE_AGENTS` | `false` por padrão |
@@ -110,7 +166,7 @@ Principais variáveis:
 
 | Volume | Path | Conteúdo |
 |--------|------|----------|
-| `orca-home` | `/home/orca` | credenciais, mise, configs de agentes |
+| `orca-home` | `/home/orca` | **Orca runtime**, credenciais, mise, configs |
 | `workspace` | `/workspace` | repositórios e worktrees |
 | `tailscale-state` | `/var/lib/tailscale` | identidade do nó Tailscale |
 
@@ -122,7 +178,7 @@ Principais variáveis:
 - Acesso via Tailnet: `http://orca-dev:6768`, `http://orca-dev:3000`, etc.
 - Servidores de dev devem escutar em `0.0.0.0` (não só `127.0.0.1`)
 - Opcional: Tailscale Serve; **não** usar Funnel por padrão
-- Profile `docker-access` para socket (risco elevado — documentado no plano)
+- Profile `docker-access` para socket (risco elevado)
 
 ## Security
 
@@ -139,49 +195,48 @@ Principais variáveis:
 orca-server/
 ├── Dockerfile
 ├── docker-compose.yml
-├── .dockerignore
 ├── .env.example
-├── README.md
-├── config/
-│   └── mise.toml
-├── docs/
-│   └── IMPLEMENTATION_PLAN.md
-├── scripts/
-│   ├── entrypoint.sh
-│   ├── install-orca.sh
-│   ├── install-agents.sh
-│   ├── doctor.sh
-│   ├── versions.sh
-│   └── ports.sh
-└── data/                 # local only, gitignored
-    ├── home/
-    └── workspace/
+├── config/mise.toml
+├── docs/IMPLEMENTATION_PLAN.md
+└── scripts/
+    ├── entrypoint.sh
+    ├── update-orca.sh      # upgrade sem rebuild
+    ├── lib-orca.sh
+    ├── orca-wrapper.sh
+    ├── install-agents.sh
+    ├── doctor.sh
+    ├── versions.sh
+    └── ports.sh
 ```
 
 ## Implementation phases
 
-Ver ordem completa em [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90:
+Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 
-| Fase | Foco |
-|------|------|
-| A | Docker base (Debian Slim, user, volumes) |
-| B | mise (Node, Python, uv, tasks) |
-| C | Orca (extract AppImage, wrapper, serve) |
-| D | Tailscale sidecar + portas dinâmicas |
-| E | Agentes principais |
-| F | agents:update / versions / doctor |
-| G | Agentes opcionais (após confirmação oficial) |
-| H | Segurança, healthchecks, README final |
+| Fase | Foco | Status |
+|------|------|--------|
+| A | Docker base (Debian Slim, Electron libs, user) | done |
+| B | mise (Node, Python, uv) | done |
+| C | Orca runtime no volume + update-orca | done |
+| D | Tailscale sidecar + portas dinâmicas | compose ready |
+| E | Agentes principais | scaffold |
+| F | agents:update | pending |
+| G | Agentes opcionais | pending |
+| H | Hardening final | pending |
 
 ## Upgrade
 
 ```bash
-# runtime base / Orca
+# Orca only (no image rebuild)
+docker compose exec orca /scripts/update-orca.sh latest
+docker compose restart orca
+
+# AI CLIs (no image rebuild) — when agents:update is implemented
+docker compose exec orca mise run agents:update
+
+# Base image / system libs
 docker compose build --pull
 docker compose up -d
-
-# AI CLIs (sem rebuild)
-docker compose exec orca mise run agents:update
 ```
 
 ## Troubleshooting
@@ -190,6 +245,7 @@ docker compose exec orca mise run agents:update
 docker compose logs -f tailscale
 docker compose logs -f orca
 docker compose exec orca /scripts/doctor.sh
+docker compose exec orca /scripts/update-orca.sh --status
 docker compose exec orca /scripts/ports.sh
 ```
 

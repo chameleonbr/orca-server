@@ -1,5 +1,9 @@
 # Orca remote workstation: Tailscale sidecar + orca-dev sharing net namespace.
 # No host port publishing by default — access via Tailnet / MagicDNS.
+#
+# Orca binary lives in the orca-home volume and is upgraded without image rebuild:
+#   docker compose exec orca /scripts/update-orca.sh
+#   docker compose restart orca
 
 services:
   tailscale:
@@ -18,7 +22,6 @@ services:
       - NET_ADMIN
       - NET_RAW
     restart: unless-stopped
-    # Prefer official health mechanism when available; placeholder:
     healthcheck:
       test: ["CMD-SHELL", "tailscale status --json >/dev/null 2>&1 || exit 1"]
       interval: 30s
@@ -30,8 +33,9 @@ services:
     build:
       context: .
       args:
-        ORCA_VERSION: ${ORCA_VERSION:-1.4.185}
+        ORCA_VERSION: ${ORCA_VERSION:-latest}
         ORCA_SHA256: ${ORCA_SHA256:-}
+        ORCA_SEED_IN_IMAGE: ${ORCA_SEED_IN_IMAGE:-false}
         PUID: ${PUID:-1000}
         PGID: ${PGID:-1000}
         MISE_VERSION: ${MISE_VERSION:-}
@@ -56,20 +60,22 @@ services:
     environment:
       HOME: /home/orca
       ORCA_PORT: ${ORCA_PORT:-6768}
+      ORCA_VERSION: ${ORCA_VERSION:-latest}
       ORCA_PAIRING_ADDRESS: ${ORCA_PAIRING_ADDRESS:-}
+      ORCA_INSTALL_DIR: /home/orca/.local/share/orca
+      AUTO_UPDATE_ORCA: ${AUTO_UPDATE_ORCA:-false}
       AUTO_UPDATE_AGENTS: ${AUTO_UPDATE_AGENTS:-false}
       TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-orca-dev}
+      LIBGL_ALWAYS_SOFTWARE: "1"
     volumes:
+      # HOME holds: agent creds, mise, AND the updatable Orca runtime
       - orca-home:/home/orca
       - workspace:/workspace
-      # Local bind mounts alternative (uncomment if preferred over named volumes):
-      # - ./data/home:/home/orca
-      # - ./data/workspace:/workspace
     restart: unless-stopped
-    # No ports: section — Tailnet only
-    # Orca itself is NOT privileged
+    # First boot may download ~200MB AppImage into the volume
+    stop_grace_period: 30s
 
-  # Optional: mount host Docker socket (equivalent to root on host — explicit opt-in)
+  # Optional: mount host Docker socket (root-equivalent on host — explicit opt-in)
   orca-docker-access:
     profiles: ["docker-access"]
     extends:

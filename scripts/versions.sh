@@ -4,6 +4,7 @@ set -euo pipefail
 
 export HOME="${HOME:-/home/orca}"
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:/usr/local/bin:${PATH}"
+export ORCA_INSTALL_DIR="${ORCA_INSTALL_DIR:-${HOME}/.local/share/orca}"
 
 ver() {
   local label="$1" bin="$2"
@@ -15,10 +16,12 @@ ver() {
 }
 
 echo "=== versions ==="
-if [[ -f /opt/orca/VERSION ]]; then
-  printf '%-12s %s\n' "Orca:" "$(cat /opt/orca/VERSION)"
+if [[ -f "${ORCA_INSTALL_DIR}/VERSION" ]]; then
+  printf '%-12s %s\n' "Orca:" "$(cat "${ORCA_INSTALL_DIR}/VERSION")  (${ORCA_INSTALL_DIR})"
+elif [[ -f /opt/orca-seed/VERSION ]]; then
+  printf '%-12s %s\n' "Orca seed:" "$(cat /opt/orca-seed/VERSION)  (/opt/orca-seed)"
 else
-  ver "Orca" orca
+  printf '%-12s %s\n' "Orca:" "not installed — run /scripts/update-orca.sh"
 fi
 ver "mise" mise
 ver "Node" node

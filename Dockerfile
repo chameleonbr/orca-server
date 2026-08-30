@@ -1,14 +1,21 @@
 # syntax=docker/dockerfile:1
 # Orca Server headless workstation — Debian Slim + mise + AI agents
-# Spec: docs/IMPLEMENTATION_PLAN.md (review mise + Tailscale sidecar prevails)
+# Spec: docs/IMPLEMENTATION_PLAN.md
+#
+# Orca binary is NOT baked into the image by default.
+# It installs into the persistent HOME volume on first boot and is upgraded via:
+#   /scripts/update-orca.sh   or   mise run orca:update
+# without rebuilding this image.
+# Optional: ORCA_SEED_IN_IMAGE=true to bake a seed copy under /opt/orca-seed.
 
 ARG DEBIAN_CODENAME=trixie
 FROM debian:${DEBIAN_CODENAME}-slim
 
 ARG PUID=1000
 ARG PGID=1000
-ARG ORCA_VERSION=1.4.185
+ARG ORCA_VERSION=latest
 ARG ORCA_SHA256=
+ARG ORCA_SEED_IN_IMAGE=false
 ARG MISE_VERSION=
 ARG NODE_VERSION=22
 ARG PYTHON_VERSION=3.13
@@ -29,9 +36,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     USER=orca \
     LANG=C.UTF-8 \
     ORCA_PORT=6768 \
+    ORCA_VERSION=${ORCA_VERSION} \
+    ORCA_INSTALL_DIR=/home/orca/.local/share/orca \
+    LIBGL_ALWAYS_SOFTWARE=1 \
     PATH="/home/orca/.local/bin:/home/orca/.local/share/mise/shims:/usr/local/bin:${PATH}"
 
-# --- Phase A: base packages ---
+# --- Phase A: base + Electron libs (official headless matrix, Debian 13 t64 names) ---
+# https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       bash \
@@ -62,14 +73,35 @@ RUN apt-get update \
       netcat-openbsd \
       iproute2 \
       sudo \
+      libgtk-3-0t64 \
+      libnss3 \
+      libatk1.0-0t64 \
+      libatk-bridge2.0-0t64 \
+      libgbm1 \
+      libasound2t64 \
+      libxtst6 \
+      libcups2t64 \
+      libdrm2 \
+      libxkbcommon0 \
+      libpango-1.0-0 \
+      libcairo2 \
+      libatspi2.0-0t64 \
+      libxcomposite1 \
+      libxdamage1 \
+      libxfixes3 \
+      libxrandr2 \
+      libxrender1 \
+      libx11-xcb1 \
+      libxcb-dri3-0 \
+      libxss1 \
  && rm -rf /var/lib/apt/lists/* \
  && ln -sf "$(command -v fdfind)" /usr/local/bin/fd || true
 
 # --- non-root user ---
 RUN groupadd -g "${PGID}" orca \
  && useradd -m -u "${PUID}" -g "${PGID}" -s /bin/bash -d /home/orca orca \
- && mkdir -p /workspace /opt/orca /scripts \
- && chown -R orca:orca /home/orca /workspace
+ && mkdir -p /workspace /opt/orca-seed /scripts /opt/orca-server \
+ && chown -R orca:orca /home/orca /workspace /opt/orca-seed
 
 # --- GitHub CLI (official apt source) ---
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
@@ -83,7 +115,9 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 
 COPY scripts/ /scripts/
 COPY config/mise.toml /opt/orca-server/mise.toml
-RUN chmod +x /scripts/*.sh
+RUN chmod +x /scripts/*.sh \
+ && cp /scripts/orca-wrapper.sh /usr/local/bin/orca \
+ && chmod 755 /usr/local/bin/orca
 
 # --- Phase B: mise (as orca) ---
 USER orca
@@ -92,21 +126,37 @@ WORKDIR /home/orca
 RUN /scripts/install-mise.sh \
  && /scripts/bootstrap-runtimes.sh
 
-# --- Phase C: Orca AppImage extract (no FUSE) ---
+# --- Optional seed of Orca into the image (still copied to volume on first boot) ---
 USER root
-RUN /scripts/install-orca.sh \
- && chown -R orca:orca /opt/orca
+RUN if [ "${ORCA_SEED_IN_IMAGE}" = "true" ]; then \
+      ORCA_INSTALL_DIR=/opt/orca-seed HOME=/home/orca \
+        /scripts/update-orca.sh "${ORCA_VERSION}" --force \
+      && chown -R orca:orca /opt/orca-seed ; \
+    else \
+      echo "Skipping Orca seed in image (runtime install via volume)" ; \
+    fi
 
-# --- Phase E/G: agents (modular flags) ---
+# --- Phase E: agents (modular flags) — can also be refreshed at runtime via mise ---
 USER orca
-RUN /scripts/install-agents.sh
+ENV INSTALL_CLAUDE=${INSTALL_CLAUDE} \
+    INSTALL_CODEX=${INSTALL_CODEX} \
+    INSTALL_GEMINI=${INSTALL_GEMINI} \
+    INSTALL_CURSOR=${INSTALL_CURSOR} \
+    INSTALL_OPENCODE=${INSTALL_OPENCODE} \
+    INSTALL_GROK=${INSTALL_GROK} \
+    INSTALL_HERMES=${INSTALL_HERMES} \
+    INSTALL_QWEN=${INSTALL_QWEN} \
+    INSTALL_KIMI=${INSTALL_KIMI}
+
+RUN /scripts/install-agents.sh || echo "WARN: some agents failed during image build (can install later)"
 
 USER orca
 WORKDIR /workspace
 
+# Port is for documentation only — compose uses Tailscale net namespace, no host publish
 EXPOSE 6768
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
   CMD nc -z 127.0.0.1 ${ORCA_PORT:-6768} || exit 1
 
 ENTRYPOINT ["/scripts/entrypoint.sh"]
