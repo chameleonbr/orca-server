@@ -113,14 +113,23 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
  && apt-get install -y --no-install-recommends gh \
  && rm -rf /var/lib/apt/lists/*
 
+# supercronic — in-container schedule for mup (no host cron/systemd)
+ARG SUPERCRONIC_VERSION=0.2.33
+COPY scripts/install-supercronic.sh /tmp/install-supercronic.sh
+RUN chmod +x /tmp/install-supercronic.sh \
+ && SUPERCRONIC_VERSION="${SUPERCRONIC_VERSION}" /tmp/install-supercronic.sh \
+ && rm -f /tmp/install-supercronic.sh
+
 COPY scripts/ /scripts/
 COPY config/mise.toml /opt/orca-server/mise.toml
+COPY config/mup.crontab /opt/orca-server/mup.crontab
 RUN chmod +x /scripts/*.sh \
  && cp /scripts/orca-wrapper.sh /usr/local/bin/orca \
  && chmod 755 /usr/local/bin/orca \
  && ln -sf /scripts/mup.sh /usr/local/bin/mup \
  && ln -sf /scripts/update-orca.sh /usr/local/bin/update-orca \
- && ln -sf /scripts/update-agents.sh /usr/local/bin/update-agents
+ && ln -sf /scripts/update-agents.sh /usr/local/bin/update-agents \
+ && ln -sf /scripts/supervise.sh /usr/local/bin/supervise-orca
 
 # --- Phase B: mise (as orca) ---
 USER orca

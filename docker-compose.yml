@@ -63,10 +63,25 @@ services:
       ORCA_VERSION: ${ORCA_VERSION:-latest}
       ORCA_PAIRING_ADDRESS: ${ORCA_PAIRING_ADDRESS:-}
       ORCA_INSTALL_DIR: /home/orca/.local/share/orca
+      # mup: all scheduling inside the container (supercronic) — nothing on host
+      MUP_SCHEDULE: ${MUP_SCHEDULE:-true}
+      MUP_CRON: ${MUP_CRON:-"15 4 * * *"}
+      MUP_ON_BOOT: ${MUP_ON_BOOT:-false}
+      TZ: ${TZ:-America/Sao_Paulo}
+      AUTO_UPDATE_ALL: ${AUTO_UPDATE_ALL:-false}
       AUTO_UPDATE_ORCA: ${AUTO_UPDATE_ORCA:-false}
       AUTO_UPDATE_AGENTS: ${AUTO_UPDATE_AGENTS:-false}
       TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-orca-dev}
       LIBGL_ALWAYS_SOFTWARE: "1"
+      INSTALL_CLAUDE: ${INSTALL_CLAUDE:-true}
+      INSTALL_CODEX: ${INSTALL_CODEX:-true}
+      INSTALL_GEMINI: ${INSTALL_GEMINI:-true}
+      INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
+      INSTALL_OPENCODE: ${INSTALL_OPENCODE:-true}
+      INSTALL_GROK: ${INSTALL_GROK:-false}
+      INSTALL_HERMES: ${INSTALL_HERMES:-false}
+      INSTALL_QWEN: ${INSTALL_QWEN:-false}
+      INSTALL_KIMI: ${INSTALL_KIMI:-false}
     volumes:
       # HOME holds: agent creds, mise, AND the updatable Orca runtime
       - orca-home:/home/orca

@@ -159,9 +159,9 @@ log "=== mup done failures=${FAILURES} orca_changed=${ORCA_CHANGED} ==="
 log "summary=${SUMMARY}"
 
 if flag_on "${MUP_RESTART_HINT:-true}" && [[ "${ORCA_CHANGED}" -eq 1 ]]; then
-  log "HINT: Orca binary changed — restart the process to load it:"
-  log "  docker compose restart orca"
-  # Signal file for host scheduler
+  log "HINT: Orca binary changed — supervisor will recycle orca (in-container)"
+  log "  (or: docker compose restart orca)"
+  # Signal file for in-container supervise.sh
   echo "1" >"${STATE_DIR}/orca-restart-needed"
 fi
 

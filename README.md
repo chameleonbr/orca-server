@@ -27,7 +27,7 @@ Características:
 - Orca headless (AppImage extraído, **sem FUSE** / **sem `--privileged`**)
 - **Orca runtime no volume HOME** — upgrade sem remontar a imagem
 - **`mup`** — um comando mise para atualizar tools + Orca + agents
-- Agendamento no **host** (systemd timer 04:15 + boot) — ver `host/README.md`
+- **Agendamento 100% no container** (supercronic) — nada de cron/systemd no host
 - mise para Node/Python/uv e atualização de AI CLIs sem rebuild
 - Tailscale sidecar + `network_mode: service:tailscale`
 - HOME e workspace persistentes
@@ -35,14 +35,12 @@ Características:
 
 ## mup — atualizar tudo num comando
 
+Tudo roda **dentro** do container. O host só sobe o compose.
+
 ```bash
-# dentro do container
 docker compose exec orca mup
 # ou
 docker compose exec orca mise run mup
-
-# do host (reinicia Orca se o binário mudou)
-./host/host-mup.sh
 ```
 
 | Componente | Como | Rebuild? |
@@ -51,17 +49,30 @@ docker compose exec orca mise run mup
 | Orca AppImage | volume `~/.local/share/orca` | Não |
 | Claude / Codex / Gemini | `npm i -g` → `~/.local` | Não |
 
-Agendamento (madrugada + boot):
+### Agenda automática (dentro do container)
 
-```bash
-# recomendado
-sudo cp host/systemd/orca-mup.{service,timer} /etc/systemd/system/
-# ajuste WorkingDirectory se o clone não for /home/avila/Development/orca-server
-sudo systemctl daemon-reload
-sudo systemctl enable --now orca-mup.timer
+O `entrypoint` sobe um **supervisor** que:
+
+1. inicia **supercronic** com `MUP_CRON` (default `15 4 * * *` = 04:15)
+2. sobe o Orca como filho
+3. se o `mup` trocar o binário do Orca, **recicla o processo** sozinho (flag no volume)
+
+```text
+# .env — nada no host
+MUP_SCHEDULE=true
+MUP_CRON=15 4 * * *
+MUP_ON_BOOT=false
+TZ=America/Sao_Paulo
 ```
 
-Detalhes: [host/README.md](host/README.md).
+| Variável | Default | Efeito |
+|----------|---------|--------|
+| `MUP_SCHEDULE` | `true` | cron in-container on/off |
+| `MUP_CRON` | `15 4 * * *` | madrugada |
+| `MUP_ON_BOOT` | `false` | `mup` no start (atrasa o ready) |
+| `TZ` | `America/Sao_Paulo` | fuso do cron |
+
+Logs do schedule: `~/.local/state/orca-agent-manager/mup-cron.log` (no volume).
 
 ## Orca atualiza sem rebuild
 
@@ -188,9 +199,11 @@ Ver [`.env.example`](.env.example).
 | `ORCA_VERSION` | Tag pinada ou `latest` (default) |
 | `ORCA_PORT` | Porta do server (default `6768`) |
 | `ORCA_PAIRING_ADDRESS` | Host/IP anunciado no pairing (Tailscale) |
-| `AUTO_UPDATE_ALL` | No boot: roda `mup` completo (`false` — prefira timer no host) |
-| `AUTO_UPDATE_ORCA` | Atualiza Orca no boot (`false` por padrão) |
-| `AUTO_UPDATE_AGENTS` | Atualiza agents no boot (`false` por padrão) |
+| `MUP_SCHEDULE` | Cron in-container (`true`) |
+| `MUP_CRON` | Expressão cron (`15 4 * * *`) |
+| `MUP_ON_BOOT` | `mup` no start do container (`false`) |
+| `TZ` | Fuso do schedule |
+| `AUTO_UPDATE_ALL` | Alias de boot mup (`false`) |
 | `TS_AUTHKEY` | Auth key do Tailscale |
 | `TAILSCALE_HOSTNAME` | MagicDNS name (default `orca-dev`) |
 | `INSTALL_*` | Liga/desliga cada agente no build / mup |
@@ -230,17 +243,15 @@ orca-server/
 ├── docker-compose.yml
 ├── .env.example
 ├── config/mise.toml          # tasks: mup, orca:*, agents:*
-├── host/                     # schedule from the Docker host
-│   ├── host-mup.sh
-│   ├── cron/
-│   ├── systemd/
-│   └── README.md
+├── config/mup.crontab        # referência (schedule real via MUP_CRON)
 ├── docs/IMPLEMENTATION_PLAN.md
 └── scripts/
     ├── entrypoint.sh
+    ├── supervise.sh          # supercronic + orca child + recycle
     ├── mup.sh                # update-all orchestrator
-    ├── update-orca.sh        # Orca upgrade sem rebuild
-    ├── update-agents.sh      # agents upgrade sem rebuild
+    ├── update-orca.sh
+    ├── update-agents.sh
+    ├── install-supercronic.sh
     ├── lib-orca.sh
     ├── orca-wrapper.sh
     ├── install-agents.sh
@@ -259,7 +270,7 @@ Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 | B | mise (Node, Python, uv) | done |
 | C | Orca runtime no volume + update-orca | done |
 | D | Tailscale sidecar + portas dinâmicas | compose ready |
-| E | Agentes principais + **mup** + schedule host | done (scaffold + mup) |
+| E | Agentes + **mup** + schedule **in-container** | done |
 | F | agents:update refinado / canais | partial (via mup) |
 | G | Agentes opcionais | pending |
 | H | Hardening final | pending |
@@ -267,14 +278,12 @@ Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 ## Upgrade
 
 ```bash
-# TUDO (tools + Orca + agents) — sem rebuild
+# TUDO (tools + Orca + agents) — sem rebuild, 100% no container
 docker compose exec orca mup
-# ou do host (com restart automático se Orca mudou)
-./host/host-mup.sh
+# se o binário Orca mudou, o supervisor recicla sozinho
 
 # só Orca
 docker compose exec orca update-orca latest
-docker compose restart orca
 
 # só agents
 docker compose exec orca mise run agents:update

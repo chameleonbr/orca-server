@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # entrypoint.sh — prepare volumes, ensure Orca runtime, start headless server
+# All scheduling lives IN the container (supercronic) — nothing on the host.
 set -euo pipefail
 
 log() { printf '[entrypoint] %s\n' "$*"; }
@@ -9,7 +10,7 @@ HOME="${HOME:-/home/orca}"
 export HOME
 export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"
 export ORCA_INSTALL_DIR="${ORCA_INSTALL_DIR:-${HOME}/.local/share/orca}"
-export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:/usr/local/bin:${PATH}"
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:/usr/local/bin:/scripts:${PATH}"
 
 # 1. Persistent dirs
 mkdir -p "${HOME}" /workspace \
@@ -42,7 +43,6 @@ ensure_orca() {
   if orca_is_installed; then
     log "Orca present: $(orca_installed_version 2>/dev/null || echo unknown) @ ${ORCA_INSTALL_DIR}"
   else
-    # Copy seed from image if available (fast path)
     if [[ -x /opt/orca-seed/squashfs-root/AppRun ]]; then
       log "Seeding Orca from image /opt/orca-seed → ${ORCA_INSTALL_DIR}"
       mkdir -p "${ORCA_INSTALL_DIR}"
@@ -56,12 +56,6 @@ ensure_orca() {
     fi
   fi
 
-  # Optional auto-update of Orca on boot (default off — deliberate upgrade)
-  if [[ "${AUTO_UPDATE_ORCA:-false}" == "true" ]]; then
-    log "AUTO_UPDATE_ORCA=true — checking for newer Orca"
-    /scripts/update-orca.sh "${ORCA_VERSION:-latest}" || log "WARN: orca update failed (non-fatal)"
-  fi
-
   # Refresh user-local wrapper
   mkdir -p "${HOME}/.local/bin"
   cat > "${HOME}/.local/bin/orca" << EOF
@@ -72,18 +66,7 @@ EOF
   chmod 755 "${HOME}/.local/bin/orca"
 }
 
-# 5. Optional scheduled-style updates on boot (prefer host timer — see host/README.md)
-# AUTO_UPDATE_ALL runs mup (tools + orca + agents). Finer flags still work alone.
-if [[ "${AUTO_UPDATE_ALL:-false}" == "true" ]]; then
-  log "AUTO_UPDATE_ALL=true — running mup (tools + Orca + agents)"
-  /scripts/mup.sh || log "WARN: mup failed (non-fatal — still starting Orca)"
-elif [[ "${AUTO_UPDATE_AGENTS:-false}" == "true" ]]; then
-  log "AUTO_UPDATE_AGENTS=true — running update-agents"
-  /scripts/update-agents.sh || log "WARN: agents update failed (non-fatal)"
-fi
-
-# 6. Display: Orca starts its own Xvfb when DISPLAY is unset (official headless guide).
-#    Only start one here if ORCA_USE_XVFB=managed
+# 5. Display: Orca starts its own Xvfb when DISPLAY is unset (official headless guide).
 if [[ "${ORCA_USE_XVFB:-auto}" == "managed" ]]; then
   if ! pgrep -x Xvfb >/dev/null 2>&1; then
     log "Starting managed Xvfb on :99"
@@ -95,18 +78,13 @@ if [[ "${ORCA_USE_XVFB:-auto}" == "managed" ]]; then
   fi
 fi
 
-# 7. Pairing address
-PAIRING_ARGS=()
+# 6. Pairing address (logged; supervise also reads env)
 if [[ -n "${ORCA_PAIRING_ADDRESS:-}" ]]; then
-  PAIRING_ARGS+=(--pairing-address "${ORCA_PAIRING_ADDRESS}")
   log "ORCA_PAIRING_ADDRESS=${ORCA_PAIRING_ADDRESS}"
+elif [[ -n "${TAILSCALE_HOSTNAME:-}" ]]; then
+  log "ORCA_PAIRING_ADDRESS unset — will advertise TAILSCALE_HOSTNAME=${TAILSCALE_HOSTNAME}"
 else
-  if [[ -n "${TAILSCALE_HOSTNAME:-}" ]]; then
-    log "ORCA_PAIRING_ADDRESS unset — advertising TAILSCALE_HOSTNAME=${TAILSCALE_HOSTNAME}"
-    PAIRING_ARGS+=(--pairing-address "${TAILSCALE_HOSTNAME}")
-  else
-    log "WARN: ORCA_PAIRING_ADDRESS not set. Prefer Tailscale IP/hostname for pairing."
-  fi
+  log "WARN: ORCA_PAIRING_ADDRESS not set. Prefer Tailscale IP/hostname for pairing."
 fi
 
 cmd="${1:-serve}"
@@ -119,9 +97,9 @@ case "${cmd}" in
       log "ERROR: Orca runtime missing after ensure_orca"
       exit 1
     fi
-    log "Starting: orca serve --port ${ORCA_PORT} ${PAIRING_ARGS[*]:-}"
-    # Official: do not use --no-sandbox when running as non-root
-    exec orca serve --port "${ORCA_PORT}" ${PAIRING_ARGS[@]+"${PAIRING_ARGS[@]}"} "$@"
+    # Supervisor: in-container mup schedule + orca child + recycle on binary upgrade
+    # Nothing is installed on the Docker host.
+    exec /scripts/supervise.sh
     ;;
   doctor)
     exec /scripts/doctor.sh "$@"

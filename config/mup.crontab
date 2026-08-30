@@ -1,0 +1,11 @@
+# Reference crontab for in-container supercronic (orca-server)
+# Actual schedule is generated at runtime from MUP_CRON (default below).
+# Times use container TZ (set TZ=America/Sao_Paulo for BRT).
+#
+# Default madrugada:
+# 15 4 * * *  → 04:15 daily
+SHELL=/bin/bash
+PATH=/home/orca/.local/bin:/home/orca/.local/share/mise/shims:/usr/local/bin:/scripts:/usr/bin:/bin
+HOME=/home/orca
+
+15 4 * * * /scripts/mup.sh
