@@ -1,0 +1,16 @@
+# orca-server mup — early morning full update (tools + Orca + agents)
+# Install:
+#   sudo cp host/cron/orca-mup.cron /etc/cron.d/orca-mup
+#   sudo chmod 644 /etc/cron.d/orca-mup
+#
+# Adjust path to your clone of the repo.
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+# 04:15 every day — madrugada
+15 4 * * * root /home/avila/Development/orca-server/host/host-mup.sh >>/var/log/orca-mup.log 2>&1
+
+# On reboot — wait for docker, then mup (optional; comment out if you only want madrugada)
+@reboot root sleep 120 && /home/avila/Development/orca-server/host/host-mup.sh >>/var/log/orca-mup.log 2>&1

@@ -26,10 +26,42 @@ Características:
 - Debian Slim (sem Ubuntu/Alpine)
 - Orca headless (AppImage extraído, **sem FUSE** / **sem `--privileged`**)
 - **Orca runtime no volume HOME** — upgrade sem remontar a imagem
+- **`mup`** — um comando mise para atualizar tools + Orca + agents
+- Agendamento no **host** (systemd timer 04:15 + boot) — ver `host/README.md`
 - mise para Node/Python/uv e atualização de AI CLIs sem rebuild
 - Tailscale sidecar + `network_mode: service:tailscale`
 - HOME e workspace persistentes
 - Sem Docker socket e sem exposição pública por padrão
+
+## mup — atualizar tudo num comando
+
+```bash
+# dentro do container
+docker compose exec orca mup
+# ou
+docker compose exec orca mise run mup
+
+# do host (reinicia Orca se o binário mudou)
+./host/host-mup.sh
+```
+
+| Componente | Como | Rebuild? |
+|------------|------|----------|
+| Node / Python / uv | `mise install` + `upgrade` | Não |
+| Orca AppImage | volume `~/.local/share/orca` | Não |
+| Claude / Codex / Gemini | `npm i -g` → `~/.local` | Não |
+
+Agendamento (madrugada + boot):
+
+```bash
+# recomendado
+sudo cp host/systemd/orca-mup.{service,timer} /etc/systemd/system/
+# ajuste WorkingDirectory se o clone não for /home/avila/Development/orca-server
+sudo systemctl daemon-reload
+sudo systemctl enable --now orca-mup.timer
+```
+
+Detalhes: [host/README.md](host/README.md).
 
 ## Orca atualiza sem rebuild
 
@@ -156,11 +188,12 @@ Ver [`.env.example`](.env.example).
 | `ORCA_VERSION` | Tag pinada ou `latest` (default) |
 | `ORCA_PORT` | Porta do server (default `6768`) |
 | `ORCA_PAIRING_ADDRESS` | Host/IP anunciado no pairing (Tailscale) |
+| `AUTO_UPDATE_ALL` | No boot: roda `mup` completo (`false` — prefira timer no host) |
 | `AUTO_UPDATE_ORCA` | Atualiza Orca no boot (`false` por padrão) |
+| `AUTO_UPDATE_AGENTS` | Atualiza agents no boot (`false` por padrão) |
 | `TS_AUTHKEY` | Auth key do Tailscale |
 | `TAILSCALE_HOSTNAME` | MagicDNS name (default `orca-dev`) |
-| `AUTO_UPDATE_AGENTS` | `false` por padrão |
-| `INSTALL_*` | Liga/desliga cada agente no build |
+| `INSTALL_*` | Liga/desliga cada agente no build / mup |
 
 ## Volumes
 
@@ -196,11 +229,18 @@ orca-server/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
-├── config/mise.toml
+├── config/mise.toml          # tasks: mup, orca:*, agents:*
+├── host/                     # schedule from the Docker host
+│   ├── host-mup.sh
+│   ├── cron/
+│   ├── systemd/
+│   └── README.md
 ├── docs/IMPLEMENTATION_PLAN.md
 └── scripts/
     ├── entrypoint.sh
-    ├── update-orca.sh      # upgrade sem rebuild
+    ├── mup.sh                # update-all orchestrator
+    ├── update-orca.sh        # Orca upgrade sem rebuild
+    ├── update-agents.sh      # agents upgrade sem rebuild
     ├── lib-orca.sh
     ├── orca-wrapper.sh
     ├── install-agents.sh
@@ -219,22 +259,27 @@ Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 | B | mise (Node, Python, uv) | done |
 | C | Orca runtime no volume + update-orca | done |
 | D | Tailscale sidecar + portas dinâmicas | compose ready |
-| E | Agentes principais | scaffold |
-| F | agents:update | pending |
+| E | Agentes principais + **mup** + schedule host | done (scaffold + mup) |
+| F | agents:update refinado / canais | partial (via mup) |
 | G | Agentes opcionais | pending |
 | H | Hardening final | pending |
 
 ## Upgrade
 
 ```bash
-# Orca only (no image rebuild)
-docker compose exec orca /scripts/update-orca.sh latest
+# TUDO (tools + Orca + agents) — sem rebuild
+docker compose exec orca mup
+# ou do host (com restart automático se Orca mudou)
+./host/host-mup.sh
+
+# só Orca
+docker compose exec orca update-orca latest
 docker compose restart orca
 
-# AI CLIs (no image rebuild) — when agents:update is implemented
+# só agents
 docker compose exec orca mise run agents:update
 
-# Base image / system libs
+# base image / system libs (raro)
 docker compose build --pull
 docker compose up -d
 ```

@@ -1,0 +1,20 @@
+[Unit]
+Description=Orca server mup (mise update-all: tools + Orca + agents)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Adjust WorkingDirectory to your clone
+WorkingDirectory=/home/avila/Development/orca-server
+Environment=ORCA_COMPOSE_DIR=/home/avila/Development/orca-server
+Environment=MUP_RESTART_ORCA=true
+ExecStart=/home/avila/Development/orca-server/host/host-mup.sh
+# Nice lower priority overnight
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

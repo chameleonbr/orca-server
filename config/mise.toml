@@ -1,5 +1,9 @@
 # Base mise config shipped with the image.
 # Copied to the user HOME on first boot if missing — never overwrites existing custom config.
+#
+# Single command to update everything:
+#   mise run mup
+#   mup
 
 [tools]
 node = "22"
@@ -10,10 +14,24 @@ uv = "latest"
 experimental = true
 yes = true
 
-# --- Orca runtime (updatable without image rebuild) ---
+# --- one-shot update-all -------------------------------------------------------
+
+[tasks.mup]
+description = "Update ALL: mise tools + Orca + AI agents (no image rebuild)"
+run = "/scripts/mup.sh"
+
+[tasks.up]
+description = "Short alias for mup"
+run = "/scripts/mup.sh"
+
+[tasks."update:all"]
+description = "Alias for mup"
+run = "/scripts/mup.sh"
+
+# --- Orca runtime (volume-installed, no rebuild) -------------------------------
 
 [tasks."orca:update"]
-description = "Download/upgrade Orca AppImage into persistent HOME (no image rebuild)"
+description = "Download/upgrade Orca AppImage into persistent HOME"
 run = "/scripts/update-orca.sh"
 
 [tasks."orca:status"]
@@ -24,7 +42,11 @@ run = "/scripts/update-orca.sh --status"
 description = "Roll back to previous Orca extract"
 run = "/scripts/update-orca.sh --rollback"
 
-# --- agent maintenance ---
+# --- agents --------------------------------------------------------------------
+
+[tasks."agents:update"]
+description = "Update AI CLIs into ~/.local (no image rebuild)"
+run = "/scripts/update-agents.sh"
 
 [tasks."agents:doctor"]
 description = "Check installed AI CLIs and runtimes"
@@ -34,6 +56,20 @@ run = "/scripts/doctor.sh"
 description = "Print runtime and agent versions"
 run = "/scripts/versions.sh"
 
-[tasks."agents:update"]
-description = "Update AI CLIs via official mechanisms (no image rebuild)"
-run = "echo 'agents:update: implement per-agent updaters (Phase F) — see docs/IMPLEMENTATION_PLAN.md §71'"
+[tasks."agents:update:claude"]
+description = "Update Claude Code only"
+run = "INSTALL_CLAUDE=true INSTALL_CODEX=false INSTALL_GEMINI=false INSTALL_CURSOR=false INSTALL_OPENCODE=false INSTALL_GROK=false INSTALL_HERMES=false INSTALL_QWEN=false INSTALL_KIMI=false /scripts/update-agents.sh"
+
+[tasks."agents:update:codex"]
+description = "Update Codex only"
+run = "INSTALL_CLAUDE=false INSTALL_CODEX=true INSTALL_GEMINI=false INSTALL_CURSOR=false INSTALL_OPENCODE=false INSTALL_GROK=false INSTALL_HERMES=false INSTALL_QWEN=false INSTALL_KIMI=false /scripts/update-agents.sh"
+
+[tasks."agents:update:gemini"]
+description = "Update Gemini CLI only"
+run = "INSTALL_CLAUDE=false INSTALL_CODEX=false INSTALL_GEMINI=true INSTALL_CURSOR=false INSTALL_OPENCODE=false INSTALL_GROK=false INSTALL_HERMES=false INSTALL_QWEN=false INSTALL_KIMI=false /scripts/update-agents.sh"
+
+# --- tools only ----------------------------------------------------------------
+
+[tasks."tools:update"]
+description = "mise install + upgrade (node/python/uv)"
+run = "mise install && (mise upgrade || true) && mise --version && node -v && python3 --version && uv --version"

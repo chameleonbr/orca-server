@@ -72,14 +72,14 @@ EOF
   chmod 755 "${HOME}/.local/bin/orca"
 }
 
-# 5. Optional agent auto-update (must not block Orca)
-if [[ "${AUTO_UPDATE_AGENTS:-false}" == "true" ]]; then
-  log "AUTO_UPDATE_AGENTS=true — running mise run agents:update"
-  if command -v mise >/dev/null 2>&1; then
-    mise run agents:update || log "WARN: agents:update failed (non-fatal)"
-  else
-    log "WARN: mise not found; skipping agents:update"
-  fi
+# 5. Optional scheduled-style updates on boot (prefer host timer — see host/README.md)
+# AUTO_UPDATE_ALL runs mup (tools + orca + agents). Finer flags still work alone.
+if [[ "${AUTO_UPDATE_ALL:-false}" == "true" ]]; then
+  log "AUTO_UPDATE_ALL=true — running mup (tools + Orca + agents)"
+  /scripts/mup.sh || log "WARN: mup failed (non-fatal — still starting Orca)"
+elif [[ "${AUTO_UPDATE_AGENTS:-false}" == "true" ]]; then
+  log "AUTO_UPDATE_AGENTS=true — running update-agents"
+  /scripts/update-agents.sh || log "WARN: agents update failed (non-fatal)"
 fi
 
 # 6. Display: Orca starts its own Xvfb when DISPLAY is unset (official headless guide).
@@ -131,6 +131,12 @@ case "${cmd}" in
     ;;
   update-orca|orca:update)
     exec /scripts/update-orca.sh "$@"
+    ;;
+  update-agents|agents:update)
+    exec /scripts/update-agents.sh "$@"
+    ;;
+  mup|update-all|update:all)
+    exec /scripts/mup.sh "$@"
     ;;
   orca)
     ensure_orca

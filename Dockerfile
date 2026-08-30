@@ -117,7 +117,10 @@ COPY scripts/ /scripts/
 COPY config/mise.toml /opt/orca-server/mise.toml
 RUN chmod +x /scripts/*.sh \
  && cp /scripts/orca-wrapper.sh /usr/local/bin/orca \
- && chmod 755 /usr/local/bin/orca
+ && chmod 755 /usr/local/bin/orca \
+ && ln -sf /scripts/mup.sh /usr/local/bin/mup \
+ && ln -sf /scripts/update-orca.sh /usr/local/bin/update-orca \
+ && ln -sf /scripts/update-agents.sh /usr/local/bin/update-agents
 
 # --- Phase B: mise (as orca) ---
 USER orca
