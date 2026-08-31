@@ -1,95 +1,95 @@
-# Operação — orca-server
+# Operations — orca-server
 
-Tudo roda **no container**. O host só faz `docker compose up/down`.
+Everything runs **inside the container**. The host only runs `docker compose up/down`.
 
-## Status atual (A–E + pair)
+## Current status (A–E + pair)
 
-| Item | Estado |
+| Item | State |
 |------|--------|
-| Tailscale nó | `orca-dev` (MagicDNS) |
-| Orca | volume `~/.local/share/orca`, update sem rebuild |
+| Tailscale node | `orca-dev` (MagicDNS) |
+| Orca | volume `~/.local/share/orca`, upgrade without rebuild |
 | mup | supercronic 04:15 `America/Sao_Paulo` |
-| Agents no volume | claude, codex, gemini, opencode |
-| Pairing | via `orca://pair?code=…` no Desktop |
+| Agents on volume | claude, codex, gemini, opencode |
+| Pairing | via `orca://pair?code=…` in Desktop |
 
-## Pair (já validado)
+## Pairing (validated)
 
-1. Client na mesma Tailnet.
+1. Client on the same Tailnet.
 2. Logs:
    ```bash
    docker compose logs orca 2>&1 | grep 'Pairing URL'
    ```
-3. Desktop: Settings → Remote Orca Servers → colar URL.
-4. Endpoint anunciado: `ws://orca-dev:6768` (bind real `0.0.0.0:6768`).
+3. Desktop: Settings → Remote Orca Servers → paste URL.
+4. Advertised endpoint: `ws://orca-dev:6768` (real bind `0.0.0.0:6768`).
 
-O link é um **offer v2** (endpoint + deviceToken + publicKey) em Base64URL — ver análise no histórico da sessão.
+The link is a **v2 offer** (endpoint + deviceToken + publicKey) in Base64URL.
 
-## Contas de agents (próximo passo operacional)
+## Agent accounts (next operational step)
 
-O CLI `orca account *` **não** sobe como segundo processo enquanto `orca serve` está no ar
-(single-instance lock do Electron no mesmo `userData`). Preferir:
+The CLI `orca account *` **cannot** start a second process while `orca serve` is running
+(Electron single-instance lock on the same `userData`). Prefer:
 
-### A) Pelo Orca Desktop (recomendado após pair)
+### A) Orca Desktop (recommended after pair)
 
-No runtime remoto pairado: adicionar contas Claude/Codex pela UI do Orca
-(managed accounts no host).
+On the paired remote runtime: add Claude/Codex accounts via the Orca UI
+(managed accounts on the host).
 
-### B) Login nativo no container (credenciais no volume HOME)
+### B) Native login in the container (credentials on the HOME volume)
 
 ```bash
 docker compose exec orca bash
-# PATH já inclui ~/.local/bin + mise shims
+# PATH already includes ~/.local/bin + mise shims
 
-claude          # ou: claude auth login
-codex login     # fluxo oficial OpenAI
-gemini          # auth Google conforme CLI
-opencode        # auth conforme CLI
+claude          # or: claude auth login
+codex login     # official OpenAI flow
+gemini          # Google auth per CLI
+opencode        # auth per CLI
 ```
 
-Credenciais ficam em `~/.claude`, `~/.codex`, etc. no volume **orca-home** — sobrevivem restart e `mup`.
+Credentials live under `~/.claude`, `~/.codex`, etc. on the **orca-home** volume — they survive restarts and `mup`.
 
-### C) Via Orca CLI (só se serve estiver parado)
+### C) Via Orca CLI (only if serve is stopped)
 
 ```bash
 docker compose stop orca
 docker compose run --rm --entrypoint /scripts/entrypoint.sh orca orca account add --agent claude
-# … depois compose start de novo
+# … then compose start again
 ```
 
-Na prática, **A ou B** são melhores.
+In practice, **A or B** are better.
 
-## Update sem rebuild
+## Update without rebuild
 
 ```bash
-docker compose exec orca mup                 # tools + agents (+ orca se MUP_ORCA)
+docker compose exec orca mup                 # tools + agents (+ orca if MUP_ORCA)
 docker compose exec orca mise run agents:update
-docker compose exec orca update-orca latest  # supervisor recicla se binário mudou
+docker compose exec orca update-orca latest  # supervisor recycles if binary changed
 docker compose exec orca /scripts/doctor.sh
 ```
 
-## Portas dinâmicas (Tailnet)
+## Dynamic ports (Tailnet)
 
-Sem publicar no host. Qualquer processo no container escutando `0.0.0.0:<porta>`
-fica acessível como `http://orca-dev:<porta>` na Tailnet.
+No host publish. Any process in the container listening on `0.0.0.0:<port>`
+is reachable as `http://orca-dev:<port>` on the Tailnet.
 
-Teste manual:
+Manual test:
 
 ```bash
 docker compose exec orca python3 -m http.server 9123 --bind 0.0.0.0
-# noutro device da tailnet: http://orca-dev:9123
+# on another Tailnet device: http://orca-dev:9123
 ```
 
-## Arquivos sensíveis
+## Sensitive files
 
-- `.env` (TS_AUTHKEY) — gitignored, nunca commit
-- volume `orca-home` — pairing state + agent creds (backup criptografado)
+- `.env` (`TS_AUTHKEY`) — gitignored, never commit
+- volume `orca-home` — pairing state + agent creds (encrypted backup)
 
-## Comandos úteis
+## Useful commands
 
 ```bash
 docker compose ps
 docker compose logs -f orca
 docker compose exec orca /scripts/update-orca.sh --status
 docker compose exec orca mise run agents:versions
-tailscale status | grep orca-dev   # no host
+tailscale status | grep orca-dev   # on the host
 ```

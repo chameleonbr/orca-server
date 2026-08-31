@@ -1,19 +1,19 @@
 # orca-server
 
-Workstation remota de desenvolvimento com **Orca Server** headless, **mise**, agentes de IA e acesso privado via **Tailscale sidecar**.
+Remote development workstation with headless **Orca Server**, **mise**, AI agents, and private access via a **Tailscale sidecar**.
 
-> Status: Fases A–E + **pair Desktop OK** no host `dhh` (`orca-dev`). Próximo: contas dos agents no runtime remoto.
+> Status: Phases A–E + **Desktop pair OK** on host `dhh` (`orca-dev`). Next: agent accounts on the remote runtime.
 
-## Pós-pair — accounts
+## Post-pair — accounts
 
-Depois do pair, autentique os agents **no servidor** (credenciais no volume):
+After pairing, authenticate agents **on the server** (credentials live on the volume):
 
-- UI do Orca Desktop no runtime remoto, ou
+- Orca Desktop UI on the paired remote runtime, or
 - `docker compose exec orca bash` → `claude` / `codex login` / `gemini` / `opencode`
 
-Detalhes: [docs/OPERATIONS.md](docs/OPERATIONS.md).
+Details: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
-## O que é
+## What it is
 
 ```text
 Notebook/Desktop (Orca IDE)
@@ -21,126 +21,126 @@ Notebook/Desktop (Orca IDE)
      Tailscale
         │
 ┌───────▼────────┐
-│ orca-dev       │  ← nó na Tailnet
+│ orca-dev       │  ← node on the Tailnet
 │ :6768 Orca     │
-│ :3000/:5173/…  │  ← portas dinâmicas de dev (sem publicar no host)
+│ :3000/:5173/…  │  ← dynamic dev ports (not published on the host)
 │ Debian Slim    │
 │ mise + agents  │
 │ /workspace     │
 └────────────────┘
 ```
 
-Características:
+Features:
 
-- Debian Slim (sem Ubuntu/Alpine)
-- Orca headless (AppImage extraído, **sem FUSE** / **sem `--privileged`**)
-- **Orca runtime no volume HOME** — upgrade sem remontar a imagem
-- **`mup`** — um comando mise para atualizar tools + Orca + agents
-- **Agendamento 100% no container** (supercronic) — nada de cron/systemd no host
-- mise para Node/Python/uv e atualização de AI CLIs sem rebuild
+- Debian Slim (no Ubuntu / Alpine)
+- Headless Orca (extracted AppImage, **no FUSE** / **no `--privileged`**)
+- **Orca runtime on the HOME volume** — upgrade without rebuilding the image
+- **`mup`** — one mise command to update tools + Orca + agents
+- **Scheduling 100% in-container** (supercronic) — no host cron/systemd
+- mise for Node/Python/uv and AI CLI updates without rebuild
 - Tailscale sidecar + `network_mode: service:tailscale`
-- HOME e workspace persistentes
-- Sem Docker socket e sem exposição pública por padrão
+- Persistent HOME and workspace
+- No Docker socket and no public exposure by default
 
-## mup — atualizar tudo num comando
+## mup — update everything with one command
 
-Tudo roda **dentro** do container. O host só sobe o compose.
+Everything runs **inside** the container. The host only starts compose.
 
 ```bash
 docker compose exec orca mup
-# ou
+# or
 docker compose exec orca mise run mup
 ```
 
-| Componente | Como | Rebuild? |
-|------------|------|----------|
-| Node / Python / uv | `mise install` + `upgrade` | Não |
-| Orca AppImage | volume `~/.local/share/orca` | Não |
-| Claude / Codex / Gemini | `npm i -g` → `~/.local` | Não |
+| Component | How | Rebuild? |
+|-----------|-----|----------|
+| Node / Python / uv | `mise install` + `upgrade` | No |
+| Orca AppImage | volume `~/.local/share/orca` | No |
+| Claude / Codex / Gemini | `npm i -g` → `~/.local` | No |
 
-### Agenda automática (dentro do container)
+### Automatic schedule (in-container)
 
-O `entrypoint` sobe um **supervisor** que:
+The `entrypoint` starts a **supervisor** that:
 
-1. inicia **supercronic** com `MUP_CRON` (default `15 4 * * *` = 04:15)
-2. sobe o Orca como filho
-3. se o `mup` trocar o binário do Orca, **recicla o processo** sozinho (flag no volume)
+1. starts **supercronic** with `MUP_CRON` (default `15 4 * * *` = 04:15)
+2. runs Orca as a child process
+3. if `mup` replaces the Orca binary, **recycles the process** on its own (flag on the volume)
 
 ```text
-# .env — nada no host
+# .env — nothing on the host
 MUP_SCHEDULE=true
 MUP_CRON=15 4 * * *
 MUP_ON_BOOT=false
 TZ=America/Sao_Paulo
 ```
 
-| Variável | Default | Efeito |
+| Variable | Default | Effect |
 |----------|---------|--------|
-| `MUP_SCHEDULE` | `true` | cron in-container on/off |
-| `MUP_CRON` | `15 4 * * *` | madrugada |
-| `MUP_ON_BOOT` | `false` | `mup` no start (atrasa o ready) |
-| `TZ` | `America/Sao_Paulo` | fuso do cron |
+| `MUP_SCHEDULE` | `true` | in-container cron on/off |
+| `MUP_CRON` | `15 4 * * *` | overnight schedule |
+| `MUP_ON_BOOT` | `false` | run `mup` on start (delays first ready) |
+| `TZ` | `America/Sao_Paulo` | cron timezone |
 
-Logs do schedule: `~/.local/state/orca-agent-manager/mup-cron.log` (no volume).
+Schedule logs: `~/.local/state/orca-agent-manager/mup-cron.log` (on the volume).
 
-## Orca atualiza sem rebuild
+## Orca updates without rebuild
 
-O headless **não tem auto-updater** (só o desktop GUI). Por isso o AppImage **não fica “congelado” na imagem**:
+Headless Orca **has no auto-updater** (desktop GUI only). So the AppImage is **not frozen into the image**:
 
-| Camada | O que guarda |
-|--------|----------------|
-| **Imagem Docker** | Debian, libs Electron, mise, scripts, agentes base |
-| **Volume `orca-home`** | `~/.local/share/orca/` (AppImage extraído) + credenciais + mise data + `~/.config` |
+| Layer | What it holds |
+|-------|----------------|
+| **Docker image** | Debian, Electron libs, mise, scripts, base agents |
+| **Volume `orca-home`** | `~/.local/share/orca/` (extracted AppImage) + credentials + mise data + `~/.config` |
 
-### Atualizar Orca
+### Update Orca
 
 ```bash
-# ver versão atual
+# current version
 docker compose exec orca /scripts/update-orca.sh --status
-# ou
+# or
 docker compose exec orca mise run orca:status
 
-# subir para latest (ou pin: 1.4.192)
+# upgrade to latest (or pin: 1.4.192)
 docker compose exec orca /scripts/update-orca.sh latest
-# ou
+# or
 docker compose exec orca mise run orca:update
 
-# aplicar o binário novo
+# apply the new binary
 docker compose restart orca
 
-# se der ruim — volta a versão anterior extraída
+# if something breaks — roll back to the previous extract
 docker compose exec orca /scripts/update-orca.sh --rollback
 docker compose restart orca
 ```
 
-No primeiro boot, se o volume ainda não tiver Orca, o entrypoint baixa sozinho (~200 MB) para o volume.
+On first boot, if the volume has no Orca yet, the entrypoint downloads it (~200 MB) into the volume.
 
-Opcional no `.env`:
+Optional `.env` knobs:
 
 ```text
-ORCA_VERSION=latest          # ou 1.4.192
-AUTO_UPDATE_ORCA=false         # true = tenta atualizar a cada start
-ORCA_SEED_IN_IMAGE=false     # true = já embute um seed no build (ainda atualizável no volume)
+ORCA_VERSION=latest          # or 1.4.192
+AUTO_UPDATE_ORCA=false         # true = try update on every start
+ORCA_SEED_IN_IMAGE=false     # true = bake a seed at build (still updatable on the volume)
 ```
 
-Fonte oficial do binário:
+Official binary source:
 
 ```text
 https://github.com/stablyai/orca/releases/latest/download/orca-linux.AppImage
 ```
 
-Estado (pairing, projetos) fica em `~/.config/{orca,Orca}` — **independente do binário**. Trocar o AppImage não desfaz o pair.
+State (pairing, projects) lives in `~/.config/{orca,Orca}` — **independent of the binary**. Replacing the AppImage does not drop the pair.
 
-## Agentes previstos
+## Planned agents
 
-| Agente | Default |
-|--------|---------|
+| Agent | Default |
+|-------|---------|
 | Claude Code | on |
 | OpenAI Codex CLI | on |
 | Gemini CLI | on |
 | Cursor CLI | on |
 | OpenCode | on |
-| Grok | off (até confirmação oficial) |
+| Grok | off (until official install is confirmed) |
 | Hermes | off |
 | Qwen Code | off |
 | Kimi | off |
@@ -148,28 +148,29 @@ Estado (pairing, projetos) fica em `~/.config/{orca,Orca}` — **independente do
 ## Requirements
 
 - Docker + Docker Compose v2
-- Linux host (recomendado) com `/dev/net/tun` para Tailscale
-- Auth key Tailscale (scoped) para o sidecar
-- Orca Desktop no cliente para pairing
+- Linux host (recommended) with `/dev/net/tun` for Tailscale
+- Scoped Tailscale auth key for the sidecar
+- Orca Desktop on the client for pairing
 
 ## Quick start
 
 ```bash
 cp .env.example .env
-# editar: TS_AUTHKEY, ORCA_PAIRING_ADDRESS (IP/hostname Tailscale — não use 0.0.0.0)
+# edit: TS_AUTHKEY, ORCA_PAIRING_ADDRESS (Tailscale IP/hostname — do not use 0.0.0.0)
+# edit: GIT_USER_NAME, GIT_USER_EMAIL
 
 docker compose build
 docker compose up -d
 docker compose logs -f orca
 ```
 
-Pairing no Orca Desktop:
+Pairing in Orca Desktop:
 
 ```text
-Settings → Remote Orca Servers → Add Server → colar pairing URL dos logs
+Settings → Remote Orca Servers → Add Server → paste pairing URL from the logs
 ```
 
-Os logs devem mostrar algo como:
+Logs should look like:
 
 ```text
 Orca server ready
@@ -178,18 +179,18 @@ Advertised endpoint: ws://orca-dev:6768
 Pairing URL: orca://pair?code=...
 ```
 
-Autenticar agentes:
+Authenticate agents:
 
 ```bash
 docker compose exec orca bash
 claude
 codex
 gemini
-orca account add --agent claude
-orca account list
+# Prefer Desktop UI or native CLI login while `orca serve` is running
+# (`orca account *` is blocked by Electron single-instance lock)
 ```
 
-Diagnóstico:
+Diagnostics:
 
 ```bash
 docker compose exec orca /scripts/doctor.sh
@@ -201,51 +202,51 @@ docker compose exec orca mise run agents:doctor
 
 ## Configuration
 
-Ver [`.env.example`](.env.example).
+See [`.env.example`](.env.example).
 
-| Variável | Descrição |
-|----------|-----------|
-| `ORCA_VERSION` | Tag pinada ou `latest` (default) |
-| `ORCA_PORT` | Porta do server (default `6768`) |
-| `ORCA_PAIRING_ADDRESS` | Host/IP anunciado no pairing (Tailscale) |
-| `MUP_SCHEDULE` | Cron in-container (`true`) |
-| `MUP_CRON` | Expressão cron (`15 4 * * *`) |
-| `MUP_ON_BOOT` | `mup` no start do container (`false`) |
-| `TZ` | Fuso do schedule |
-| `AUTO_UPDATE_ALL` | Alias de boot mup (`false`) |
-| `GIT_USER_NAME` | `git config user.name` no boot |
-| `GIT_USER_EMAIL` | `git config user.email` no boot |
+| Variable | Description |
+|----------|-------------|
+| `ORCA_VERSION` | Pinned tag or `latest` (default) |
+| `ORCA_PORT` | Server port (default `6768`) |
+| `ORCA_PAIRING_ADDRESS` | Host/IP advertised in pairing (Tailscale) |
+| `MUP_SCHEDULE` | In-container cron (`true`) |
+| `MUP_CRON` | Cron expression (`15 4 * * *`) |
+| `MUP_ON_BOOT` | Run `mup` on container start (`false`) |
+| `TZ` | Schedule timezone |
+| `AUTO_UPDATE_ALL` | Boot mup alias (`false`) |
+| `GIT_USER_NAME` | `git config user.name` on boot |
+| `GIT_USER_EMAIL` | `git config user.email` on boot |
 | `GIT_INIT_DEFAULT_BRANCH` | default `main` |
-| `TS_AUTHKEY` | Auth key do Tailscale |
+| `TS_AUTHKEY` | Tailscale auth key |
 | `TAILSCALE_HOSTNAME` | MagicDNS name (default `orca-dev`) |
-| `INSTALL_*` | Liga/desliga cada agente no build / mup |
+| `INSTALL_*` | Enable/disable each agent at build / mup |
 
 ## Volumes
 
-| Volume | Path | Conteúdo |
+| Volume | Path | Contents |
 |--------|------|----------|
-| `orca-home` | `/home/orca` | **Orca runtime**, credenciais, mise, configs |
-| `workspace` | `/workspace` | repositórios e worktrees |
-| `tailscale-state` | `/var/lib/tailscale` | identidade do nó Tailscale |
+| `orca-home` | `/home/orca` | **Orca runtime**, credentials, mise, configs |
+| `workspace` | `/workspace` | repositories and worktrees |
+| `tailscale-state` | `/var/lib/tailscale` | Tailscale node identity |
 
-**Não versionar** `data/` nem `.env`. Backup de `orca-home` contém secrets — criptografar.
+**Do not version** `data/` or `.env`. Backups of `orca-home` contain secrets — encrypt them.
 
 ## Networking
 
-- Nenhuma porta publicada no host por padrão
-- Acesso via Tailnet: `http://orca-dev:6768`, `http://orca-dev:3000`, etc.
-- Servidores de dev devem escutar em `0.0.0.0` (não só `127.0.0.1`)
-- Opcional: Tailscale Serve; **não** usar Funnel por padrão
-- Profile `docker-access` para socket (risco elevado)
+- No ports published on the host by default
+- Access via Tailnet: `http://orca-dev:6768`, `http://orca-dev:3000`, etc.
+- Dev servers must listen on `0.0.0.0` (not only `127.0.0.1`)
+- Optional: Tailscale Serve; **do not** use Funnel by default
+- Profile `docker-access` for the socket (elevated risk)
 
 ## Security
 
-- Processo Orca não-root (`user: orca`)
-- Sem `--privileged` no Orca
-- Sem FUSE
-- Sem Docker socket por padrão
-- Secrets fora da imagem
-- Porta Orca só na Tailnet / rede privada
+- Non-root Orca process (`user: orca`)
+- No `--privileged` for Orca
+- No FUSE
+- No Docker socket by default
+- Secrets kept out of the image
+- Orca port only on the Tailnet / private network
 
 ## Project layout
 
@@ -255,8 +256,9 @@ orca-server/
 ├── docker-compose.yml
 ├── .env.example
 ├── config/mise.toml          # tasks: mup, orca:*, agents:*
-├── config/mup.crontab        # referência (schedule real via MUP_CRON)
+├── config/mup.crontab        # reference (real schedule via MUP_CRON)
 ├── docs/IMPLEMENTATION_PLAN.md
+├── docs/OPERATIONS.md
 └── scripts/
     ├── entrypoint.sh
     ├── supervise.sh          # supercronic + orca child + recycle
@@ -274,33 +276,33 @@ orca-server/
 
 ## Implementation phases
 
-Ver [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
+See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 
-| Fase | Foco | Status |
-|------|------|--------|
+| Phase | Focus | Status |
+|-------|-------|--------|
 | A | Docker base (Debian Slim, Electron libs, user) | done |
 | B | mise (Node, Python, uv) | done |
-| C | Orca runtime no volume + update-orca | done |
-| D | Tailscale sidecar + portas dinâmicas | **done** (pair OK) |
-| E | Agentes + **mup** + schedule **in-container** | **done** (claude/codex/gemini/opencode) |
-| F | accounts no host + Cursor oficial | **in progress** (pair done → login agents) |
-| G | Agentes opcionais | pending |
-| H | Hardening final + teste portas dinâmicas formal | pending |
+| C | Orca runtime on volume + update-orca | done |
+| D | Tailscale sidecar + dynamic ports | **done** (pair OK) |
+| E | Agents + **mup** + **in-container** schedule | **done** (claude/codex/gemini/opencode) |
+| F | Host accounts + official Cursor | **in progress** (pair done → agent login) |
+| G | Optional agents | pending |
+| H | Final hardening + formal dynamic-port test | pending |
 
 ## Upgrade
 
 ```bash
-# TUDO (tools + Orca + agents) — sem rebuild, 100% no container
+# EVERYTHING (tools + Orca + agents) — no rebuild, 100% in-container
 docker compose exec orca mup
-# se o binário Orca mudou, o supervisor recicla sozinho
+# if the Orca binary changed, the supervisor recycles it
 
-# só Orca
+# Orca only
 docker compose exec orca update-orca latest
 
-# só agents
+# agents only
 docker compose exec orca mise run agents:update
 
-# base image / system libs (raro)
+# base image / system libs (rare)
 docker compose build --pull
 docker compose up -d
 ```

@@ -1,12 +1,12 @@
-# Plano de Implementação — Orca Server em Docker (Debian Slim)
+# Implementation Plan — Orca Server on Docker (Debian Slim)
 
-## 1. Objetivo
+## 1. Objective
 
-Criar uma imagem Docker enxuta, baseada em **Debian Slim**, capaz de executar o **Orca Server em modo headless** e disponibilizar múltiplos agentes/CLIs de IA no mesmo ambiente.
+Create a lean Docker image based on **Debian Slim**, capable of running **Orca Server in headless mode** and providing multiple AI agents/CLIs in the same environment.
 
-O container deve ser adequado para execução contínua em servidor/VPS e posteriormente poder ser publicado via Docker Compose, Dokploy ou plataforma equivalente.
+The container must be suitable for continuous execution on a server/VPS and later publishable via Docker Compose, Dokploy, or an equivalent platform.
 
-O ambiente deve suportar inicialmente:
+The environment must initially support:
 
 - Orca Server
 - Claude Code
@@ -19,41 +19,41 @@ O ambiente deve suportar inicialmente:
 - Qwen Code
 - Kimi
 - GitHub CLI
-- ferramentas comuns de desenvolvimento
+- common development tools
 
-A implementação deve ser modular: novos agentes CLI devem poder ser adicionados posteriormente sem reestruturar a imagem inteira.
+The implementation must be modular: new CLI agents should be addable later without restructuring the entire image.
 
 ---
 
-## 2. Princípios da solução
+## 2. Solution principles
 
 ### Base
 
-Usar:
+Use:
 
 ```dockerfile
 FROM debian:trixie-slim
 ```
 
-Se houver incompatibilidade comprovada com algum binário, permitir fallback para:
+If there is a proven incompatibility with some binary, allow fallback to:
 
 ```dockerfile
 FROM debian:bookworm-slim
 ```
 
-Não usar Ubuntu.
+Do not use Ubuntu.
 
-Não usar Alpine porque vários binários distribuídos para Linux dependem de glibc e o Alpine utiliza musl.
+Do not use Alpine because many binaries distributed for Linux depend on glibc and Alpine uses musl.
 
 ---
 
-## 3. Arquitetura
+## 3. Architecture
 
 ```text
 Notebook/Desktop
 └── Orca IDE
       │
-      │ rede privada
+      │ private network
       │ Tailscale / WireGuard / LAN
       ▼
 Docker Host
@@ -76,21 +76,21 @@ Docker Host
       │     └── Kimi
       │
       ├── /home/orca
-      │     └── configurações e credenciais persistentes
+      │     └── persistent settings and credentials
       │
       └── /workspace
-            └── repositórios e worktrees
+            └── repositories and worktrees
 ```
 
-O Orca remoto deve ser o proprietário do runtime.
+Remote Orca must own the runtime.
 
-Projetos, worktrees, terminais, sessões e agentes devem continuar existindo mesmo quando o notebook cliente estiver desconectado.
+Projects, worktrees, terminals, sessions, and agents must continue to exist even when the client notebook is disconnected.
 
 ---
 
-## 4. Estrutura do projeto
+## 4. Project structure
 
-Criar:
+Create:
 
 ```text
 orca-server/
@@ -110,45 +110,45 @@ orca-server/
     └── workspace/
 ```
 
-Não versionar `data/`.
+Do not version `data/`.
 
 ---
 
 ## 5. Orca Server
 
-O Orca disponibiliza oficialmente modo headless:
+Orca officially provides headless mode:
 
 ```bash
 orca serve
 ```
 
-No Linux headless/Docker, utilizar o AppImage oficial.
+On headless Linux/Docker, use the official AppImage.
 
-### Requisito importante
+### Important requirement
 
-Containers Docker normalmente não possuem FUSE.
+Docker containers normally do not have FUSE.
 
-Portanto NÃO executar o AppImage através de FUSE.
+Therefore do NOT run the AppImage through FUSE.
 
-Durante o build:
+During the build:
 
 ```bash
 ./orca-linux.AppImage --appimage-extract
 ```
 
-Depois executar diretamente:
+Then run directly:
 
 ```bash
 /opt/orca/squashfs-root/AppRun serve
 ```
 
-Isso evita:
+This avoids:
 
 - `--privileged`
 - `/dev/fuse`
-- dependência do FUSE em runtime
+- FUSE dependency at runtime
 
-Instalar requisitos Linux necessários, incluindo:
+Install required Linux packages, including:
 
 ```text
 curl
@@ -159,73 +159,73 @@ xvfb
 zlib1g-dev
 ```
 
-Adicionar bibliotecas que o AppImage Electron exigir apenas após validação real com `ldd`.
+Add libraries that the Electron AppImage requires only after real validation with `ldd`.
 
-Não instalar pacotes desnecessários preventivamente.
+Do not install unnecessary packages preventively.
 
 ---
 
-## 6. Versionamento do Orca
+## 6. Orca versioning
 
-NÃO depender permanentemente de:
+Do NOT permanently depend on:
 
 ```text
 releases/latest
 ```
 
-O Docker build deve aceitar:
+The Docker build must accept:
 
 ```text
 ORCA_VERSION
 ```
 
-Exemplo:
+Example:
 
 ```dockerfile
 ARG ORCA_VERSION=1.4.185
 ```
 
-O download deve apontar para uma versão específica.
+The download must target a specific version.
 
-Registrar a versão instalada em:
+Record the installed version in:
 
 ```text
 /opt/orca/VERSION
 ```
 
-O build deve falhar caso o download ou extração falhe.
+The build must fail if download or extraction fails.
 
-Idealmente suportar SHA256 através de:
+Ideally support SHA256 via:
 
 ```text
 ORCA_SHA256
 ```
 
-Se fornecido, validar antes de instalar.
+If provided, validate before installing.
 
 ---
 
-## 7. Usuário do container
+## 7. Container user
 
-Não executar os agentes como root.
+Do not run agents as root.
 
-Criar:
+Create:
 
 ```text
 user: orca
 home: /home/orca
 ```
 
-UID/GID devem poder ser configurados no build:
+UID/GID must be configurable at build time:
 
 ```text
 PUID
 PGID
 ```
 
-O processo principal do Orca deve rodar como esse usuário.
+The main Orca process must run as that user.
 
-Garantir ownership correto de:
+Ensure correct ownership of:
 
 ```text
 /home/orca
@@ -235,9 +235,9 @@ Garantir ownership correto de:
 
 ---
 
-## 8. Persistência
+## 8. Persistence
 
-Persistir:
+Persist:
 
 ```yaml
 volumes:
@@ -245,7 +245,7 @@ volumes:
   - ./data/workspace:/workspace
 ```
 
-Dentro do HOME serão persistidos, entre outros:
+Inside HOME the following will be persisted, among others:
 
 ```text
 ~/.claude
@@ -259,34 +259,34 @@ Dentro do HOME serão persistidos, entre outros:
 ~/.gitconfig
 ```
 
-Não criar volume separado para cada ferramenta sem necessidade.
+Do not create a separate volume for each tool without need.
 
-Persistir o HOME inteiro simplifica autenticação e atualização futura.
+Persisting the entire HOME simplifies authentication and future updates.
 
 ---
 
 ## 9. Node.js
 
-Muitos agentes utilizam Node.
+Many agents use Node.
 
-Instalar uma versão LTS moderna.
+Install a modern LTS version.
 
-Preferência:
+Preference:
 
 ```text
 Node.js 22 LTS
 ```
 
-Não depender do Node antigo disponível no repositório padrão do Debian caso ele esteja defasado.
+Do not rely on the old Node available in the default Debian repository if it is outdated.
 
-O método de instalação precisa:
+The installation method must:
 
-- funcionar em Debian
-- ser reproduzível
-- não instalar toolchains desnecessárias
-- permitir atualização simples
+- work on Debian
+- be reproducible
+- not install unnecessary toolchains
+- allow simple updates
 
-Disponibilizar:
+Provide:
 
 ```text
 node
@@ -294,36 +294,36 @@ npm
 npx
 ```
 
-Opcionalmente:
+Optionally:
 
 ```text
 pnpm
 ```
 
-Não instalar Yarn/Bun inicialmente sem necessidade comprovada.
+Do not install Yarn/Bun initially without proven need.
 
 ---
 
 ## 10. Python
 
-Instalar:
+Install:
 
 ```text
 python3
 python3-venv
 ```
 
-Instalar `uv`.
+Install `uv`.
 
-Evitar `pip install` global no Python do sistema.
+Avoid global `pip install` on the system Python.
 
-Projetos Python devem utilizar virtualenv/uv.
+Python projects must use virtualenv/uv.
 
 ---
 
-## 11. Ferramentas essenciais
+## 11. Essential tools
 
-Instalar no container:
+Install in the container:
 
 ```text
 bash
@@ -351,130 +351,129 @@ python3
 python3-venv
 ```
 
-Instalar GitHub CLI (`gh`) usando fonte oficial.
+Install GitHub CLI (`gh`) from the official source.
 
-Criar alias:
+Create alias:
 
 ```bash
 fd -> fdfind
 ```
 
-se necessário no Debian.
+if needed on Debian.
 
 ---
 
 ## 12. Claude Code
 
-Instalar seguindo o método oficial disponível no momento da implementação.
+Install following the official method available at implementation time.
 
-Atualmente pode ser instalado via:
+Currently it can be installed via:
 
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
 
-Validar:
+Validate:
 
 ```bash
 claude --version
 ```
 
-Autenticação deve ocorrer após o container estar rodando:
+Authentication must occur after the container is running:
 
 ```bash
 docker exec -it orca-server bash
 claude
 ```
 
-O Orca detecta automaticamente:
+Orca automatically detects:
 
 ```text
 ~/.claude
 ```
 
-No host headless também deverá ser possível registrar a conta através do Orca:
+On the headless host it should also be possible to register the account through Orca:
 
 ```bash
 orca account add --agent claude
 ```
 
-No nosso container, se o binário usado for `AppRun`, criar wrapper `/usr/local/bin/orca` para permitir isso.
+In our container, if the binary used is `AppRun`, create a wrapper `/usr/local/bin/orca` to allow this.
 
 ---
-
 ## 13. OpenAI Codex CLI
 
-Instalar:
+Install:
 
 ```bash
 npm install -g @openai/codex
 ```
 
-Validar:
+Validate:
 
 ```bash
 codex --version
 ```
 
-Persistir:
+Persist:
 
 ```text
 ~/.codex
 ```
 
-Autenticar dentro do container.
+Authenticate inside the container.
 
-Registrar no Orca:
+Register with Orca:
 
 ```bash
 orca account add --agent codex
 ```
 
-O Orca possui integração nativa com `~/.codex`.
+Orca has native integration with `~/.codex`.
 
 ---
 
 ## 14. Gemini CLI
 
-Instalar:
+Install:
 
 ```bash
 npm install -g @google/gemini-cli
 ```
 
-Requer Node moderno.
+Requires a modern Node version.
 
-Validar:
+Validate:
 
 ```bash
 gemini --version
 ```
 
-Autenticação deve ser feita dentro do container e persistida em `/home/orca`.
+Authentication must be performed inside the container and persisted under `/home/orca`.
 
 ---
 
 ## 15. Cursor CLI
 
-Não assumir nome de pacote npm.
+Do not assume an npm package name.
 
-Consultar a documentação oficial atual do Cursor CLI durante a implementação.
+Consult the current official Cursor CLI documentation during implementation.
 
-Instalar pelo método oficial.
+Install via the official method.
 
-Depois validar se o executável está disponível no PATH.
+Then validate that the executable is available on the PATH.
 
-O Orca detecta o Cursor CLI através do PATH.
+Orca detects the Cursor CLI via the PATH.
 
-Adicionar o instalador em função independente em:
+Add the installer as a standalone function in:
 
 ```text
 scripts/install-agents.sh
 ```
 
-O build não deve quebrar todo o servidor caso Cursor altere seu instalador.
+The build must not break the entire server if Cursor changes its installer.
 
-Preferencialmente permitir:
+Preferably allow:
 
 ```text
 INSTALL_CURSOR=true|false
@@ -484,36 +483,36 @@ INSTALL_CURSOR=true|false
 
 ## 16. Grok
 
-O Orca possui suporte para Grok entre seus agentes.
+Orca includes support for Grok among its agents.
 
-Antes de instalar qualquer pacote:
+Before installing any package:
 
-1. verificar qual CLI o Orca espera atualmente;
-2. identificar o comando executável esperado;
-3. utilizar somente fonte oficial;
-4. não instalar pacote npm apenas porque possui nome semelhante.
+1. verify which CLI Orca currently expects;
+2. identify the expected executable command;
+3. use only the official source;
+4. do not install an npm package merely because it has a similar name.
 
-Adicionar flag:
+Add flag:
 
 ```text
 INSTALL_GROK=true|false
 ```
 
-Se não houver CLI oficial/distribuição confiável no momento do build, documentar e deixar desabilitado sem comprometer os demais agentes.
+If there is no official CLI / trusted distribution at build time, document it and leave it disabled without compromising the other agents.
 
 ---
 
 ## 17. OpenCode
 
-Instalar usando método oficial atual.
+Install using the current official method.
 
-Validar executável:
+Validate the executable:
 
 ```bash
 opencode --version
 ```
 
-Adicionar flag:
+Add flag:
 
 ```text
 INSTALL_OPENCODE=true
@@ -523,19 +522,19 @@ INSTALL_OPENCODE=true
 
 ## 18. Hermes
 
-Instalar somente após verificar qual projeto Hermes é suportado pelo Orca no momento.
+Install only after verifying which Hermes project is supported by Orca at the time.
 
-Não inferir pacote pelo nome.
+Do not infer the package from the name.
 
-Validar:
+Validate:
 
 ```bash
 hermes --version
 ```
 
-ou o comando oficialmente utilizado pela integração.
+or the command officially used by the integration.
 
-Adicionar:
+Add:
 
 ```text
 INSTALL_HERMES=true|false
@@ -545,11 +544,11 @@ INSTALL_HERMES=true|false
 
 ## 19. Qwen Code
 
-Instalar somente pela distribuição oficial.
+Install only from the official distribution.
 
-Validar o nome real do binário.
+Validate the actual binary name.
 
-Adicionar:
+Add:
 
 ```text
 INSTALL_QWEN=true|false
@@ -559,9 +558,9 @@ INSTALL_QWEN=true|false
 
 ## 20. Kimi
 
-Instalar somente pela distribuição oficial suportada pelo Orca.
+Install only from the official distribution supported by Orca.
 
-Adicionar:
+Add:
 
 ```text
 INSTALL_KIMI=true|false
@@ -569,9 +568,9 @@ INSTALL_KIMI=true|false
 
 ---
 
-## 21. Instalação modular de agentes
+## 21. Modular agent installation
 
-`scripts/install-agents.sh` deve possuir funções separadas:
+`scripts/install-agents.sh` must have separate functions:
 
 ```bash
 install_claude
@@ -585,16 +584,16 @@ install_qwen
 install_kimi
 ```
 
-Cada função deve:
+Each function must:
 
-1. instalar;
-2. verificar existência do executável;
-3. imprimir versão;
-4. retornar erro compreensível.
+1. install;
+2. verify the executable exists;
+3. print the version;
+4. return a clear, actionable error.
 
-Utilizar argumentos/ENV para habilitar ou desabilitar agentes.
+Use arguments/ENV to enable or disable agents.
 
-Exemplo:
+Example:
 
 ```text
 INSTALL_CLAUDE=true
@@ -610,22 +609,22 @@ INSTALL_KIMI=true
 
 ---
 
-## 22. Wrapper `orca`
+## 22. `orca` wrapper
 
-Como o AppImage será extraído, criar:
+Because the AppImage will be extracted, create:
 
 ```text
 /usr/local/bin/orca
 ```
 
-Exemplo conceitual:
+Conceptual example:
 
 ```bash
 #!/bin/sh
 exec /opt/orca/squashfs-root/AppRun "$@"
 ```
 
-Assim estes comandos devem funcionar:
+So these commands must work:
 
 ```bash
 orca serve
@@ -639,22 +638,22 @@ orca skills list
 
 ## 23. Entrypoint
 
-Criar:
+Create:
 
 ```text
 /scripts/entrypoint.sh
 ```
 
-Ele deve:
+It must:
 
-1. verificar permissões dos diretórios persistentes;
-2. garantir `/workspace`;
-3. garantir HOME correto;
-4. opcionalmente executar diagnóstico;
-5. iniciar Xvfb se o Orca exigir display mesmo em modo headless;
-6. iniciar Orca Server.
+1. check permissions on persistent directories;
+2. ensure `/workspace` exists;
+3. ensure the correct HOME;
+4. optionally run diagnostics;
+5. start Xvfb if Orca requires a display even in headless mode;
+6. start Orca Server.
 
-Comando final:
+Final command:
 
 ```bash
 exec orca serve \
@@ -662,19 +661,19 @@ exec orca serve \
   --pairing-address "${ORCA_PAIRING_ADDRESS}"
 ```
 
-Se `ORCA_PAIRING_ADDRESS` não estiver definido:
+If `ORCA_PAIRING_ADDRESS` is not set:
 
-- não inventar IP;
-- detectar somente se existir método confiável;
-- caso contrário imprimir instrução clara e encerrar.
+- do not invent an IP;
+- detect only if a reliable method exists;
+- otherwise print a clear instruction and exit.
 
-Para ambiente local pode ser permitido configurar explicitamente:
+For a local environment it may be allowed to set explicitly:
 
 ```text
 ORCA_PAIRING_ADDRESS=192.168.1.10
 ```
 
-ou um IP Tailscale:
+or a Tailscale IP:
 
 ```text
 ORCA_PAIRING_ADDRESS=100.x.y.z
@@ -684,18 +683,18 @@ ORCA_PAIRING_ADDRESS=100.x.y.z
 
 ## 24. Xvfb
 
-Como o runtime é derivado da aplicação Electron, preparar suporte a Xvfb.
+Because the runtime is derived from the Electron application, prepare Xvfb support.
 
-Exemplo:
+Example:
 
 ```bash
 Xvfb :99 -screen 0 1280x720x24 &
 export DISPLAY=:99
 ```
 
-Não usar desktop environment.
+Do not use a desktop environment.
 
-Não instalar:
+Do not install:
 
 ```text
 GNOME
@@ -704,13 +703,13 @@ XFCE
 VNC
 ```
 
-O objetivo é manter o container headless e enxuto.
+The goal is to keep the container headless and lean.
 
 ---
 
 ## 25. Docker Compose
 
-Criar `docker-compose.yml`.
+Create `docker-compose.yml`.
 
 Base:
 
@@ -735,26 +734,26 @@ services:
       - "6768:6768"
 ```
 
-### Segurança
+### Security
 
-A porta `6768` NÃO deve ser publicada diretamente na Internet.
+Port `6768` must NOT be published directly to the Internet.
 
-Preferências:
+Preferences:
 
 1. Tailscale
 2. WireGuard
-3. rede privada
+3. private network
 4. SSH tunnel
 
-Caso Docker Host esteja acessível publicamente, firewall deve bloquear 6768 para Internet.
+If the Docker host is publicly reachable, the firewall must block 6768 from the Internet.
 
 ---
 
 ## 26. Tailscale
 
-Não colocar Tailscale dentro do mesmo container inicialmente.
+Do not put Tailscale inside the same container initially.
 
-Preferência arquitetural:
+Architectural preference:
 
 ```text
 Host
@@ -763,79 +762,78 @@ Host
      └── Orca
 ```
 
-Vantagens:
+Advantages:
 
-- container mais simples;
-- menos capabilities;
-- sem `/dev/net/tun`;
-- host controla firewall/rede;
-- atualização independente.
+- simpler container;
+- fewer capabilities;
+- no `/dev/net/tun`;
+- host controls firewall/network;
+- independent updates.
 
-O `ORCA_PAIRING_ADDRESS` deve receber o IP Tailscale do host.
+`ORCA_PAIRING_ADDRESS` must receive the host’s Tailscale IP.
 
-Caso o networking Docker impeça o acesso esperado, avaliar:
+If Docker networking blocks the expected access, evaluate:
 
 ```yaml
 network_mode: host
 ```
 
-somente em Linux.
+on Linux only.
 
-Preferir bridge inicialmente.
+Prefer bridge initially.
 
 ---
 
 ## 27. Docker socket
 
-NÃO montar por padrão:
+Do NOT mount by default:
 
 ```text
 /var/run/docker.sock
 ```
 
-Isso equivale praticamente a dar acesso root ao host.
+That is effectively equivalent to granting root access to the host.
 
-Criar perfil opcional no Compose:
+Create an optional Compose profile:
 
 ```text
 ENABLE_DOCKER_SOCKET=false
 ```
 
-Se futuramente os agentes precisarem operar containers:
+If agents later need to operate containers:
 
-- documentar explicitamente o risco;
-- considerar Docker Socket Proxy;
-- considerar Docker-in-Docker isolado;
-- somente montar socket direto se for decisão consciente.
+- document the risk explicitly;
+- consider a Docker Socket Proxy;
+- consider isolated Docker-in-Docker;
+- only mount the socket directly as a conscious decision.
 
 ---
-
 ## 28. SSH
 
-Persistir:
+Persist:
 
 ```text
 /home/orca/.ssh
 ```
 
-Mas não copiar chaves privadas para dentro da imagem.
+But do not copy private keys into the image.
 
-As chaves devem entrar somente via volume/secret em runtime.
+Keys must enter only via volume/secret at runtime.
 
-Garantir:
+Ensure:
 
 ```bash
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/*
 ```
 
-quando aplicável.
+when applicable.
 
 ---
 
 ## 29. Secrets
 
-Não colocar no Dockerfile:
+Do not put in the Dockerfile:
 
 ```text
 OPENAI_API_KEY
@@ -845,48 +843,48 @@ XAI_API_KEY
 GITHUB_TOKEN
 ```
 
-Usar:
+Use:
 
 - `.env`
 - Docker secrets
-- secrets do Dokploy
-- autenticação interativa persistida no HOME
+- Dokploy secrets
+- interactive authentication persisted in HOME
 
-Adicionar `.env` ao `.gitignore`.
+Add `.env` to `.gitignore`.
 
-`.env.example` deve conter somente nomes, sem valores reais.
+`.env.example` must contain only names, with no real values.
 
 ---
 
 ## 30. Healthcheck
 
-Não simplesmente verificar se o processo existe.
+Do not simply check whether the process exists.
 
-Criar healthcheck que teste se a porta/runtime está ativo.
+Create a healthcheck that tests whether the port/runtime is active.
 
-Se Orca expuser endpoint HTTP confiável, usar esse endpoint.
+If Orca exposes a reliable HTTP endpoint, use that endpoint.
 
-Caso não exista endpoint documentado:
+If no documented endpoint exists:
 
 ```bash
 nc -z 127.0.0.1 6768
 ```
 
-ou equivalente.
+or equivalent.
 
-Não inventar `/health`.
+Do not invent `/health`.
 
 ---
 
 ## 31. Doctor
 
-Criar:
+Create:
 
 ```text
 scripts/doctor.sh
 ```
 
-Saída desejada:
+Desired output:
 
 ```text
 [OK] Orca
@@ -904,27 +902,27 @@ Saída desejada:
 ...
 ```
 
-Para ferramentas opcionais ausentes:
+For missing optional tools:
 
 ```text
 [SKIP] Grok not installed
 ```
 
-Não marcar como erro se explicitamente desabilitada.
+Do not mark as an error if explicitly disabled.
 
 ---
 
 ## 32. Versions
 
-Criar:
+Create:
 
 ```text
 scripts/versions.sh
 ```
 
-Deve mostrar todas as versões instaladas.
+It must show all installed versions.
 
-Exemplo:
+Example:
 
 ```text
 Orca: 1.4.xxx
@@ -941,35 +939,35 @@ Cursor: ...
 OpenCode: ...
 ```
 
-Isso será útil para troubleshooting e upgrades.
+This will be useful for troubleshooting and upgrades.
 
 ---
 
-## 33. Atualização
+## 33. Updates
 
-Agentes não devem se atualizar automaticamente durante startup.
+Agents must not update themselves automatically during startup.
 
-Atualizações devem ocorrer via rebuild da imagem.
+Updates must occur via image rebuild.
 
-Fluxo:
+Flow:
 
 ```bash
 docker compose build --pull
 docker compose up -d
 ```
 
-Credenciais e projetos permanecem nos volumes.
+Credentials and projects remain on the volumes.
 
-Versões principais devem poder ser fixadas por `ARG`.
+Main versions should be pin-able via `ARG`.
 
-Exemplo:
+Example:
 
 ```text
 ORCA_VERSION
 NODE_VERSION
 ```
 
-Para agentes npm pode inicialmente utilizar versões fixadas através de ARGs:
+For npm agents, initially use versions pinned through ARGs:
 
 ```text
 CLAUDE_VERSION
@@ -977,35 +975,35 @@ CODEX_VERSION
 GEMINI_VERSION
 ```
 
-Permitir `latest` somente quando explicitamente configurado.
+Allow `latest` only when explicitly configured.
 
 ---
 
 ## 34. Multi-stage build
 
-Avaliar multi-stage build para reduzir tamanho final.
+Evaluate a multi-stage build to reduce final size.
 
-Objetivo:
+Goal:
 
-- baixar/extrair artefatos no builder;
-- copiar somente runtime necessário;
-- remover cache apt/npm;
-- não manter compiladores caso nenhum agente precise deles em runtime.
+- download/extract artifacts in the builder;
+- copy only the required runtime;
+- remove apt/npm cache;
+- do not keep compilers unless no agent needs them at runtime.
 
-Porém não sacrificar compatibilidade dos agentes por alguns MB.
+However, do not sacrifice agent compatibility for a few MB.
 
-Prioridade:
+Priority:
 
-1. funcionamento;
-2. reproducibilidade;
-3. segurança;
-4. tamanho.
+1. functionality;
+2. reproducibility;
+3. security;
+4. size.
 
 ---
 
 ## 35. Build cache
 
-Usar boas práticas:
+Use best practices:
 
 ```bash
 apt-get update \
@@ -1013,7 +1011,7 @@ apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ```
 
-Limpar:
+Clean:
 
 ```text
 npm cache
@@ -1021,41 +1019,41 @@ npm cache
 download artifacts
 ```
 
-Não remover caches dentro do HOME persistente em runtime.
+Do not remove caches inside the persistent HOME at runtime.
 
 ---
 
 ## 36. Logs
 
-Orca Server deve escrever stdout/stderr diretamente para Docker.
+Orca Server must write stdout/stderr directly to Docker.
 
-Não criar arquivo de log interno como mecanismo principal.
+Do not create an internal log file as the primary mechanism.
 
-Permitir:
+Allow:
 
 ```bash
 docker logs -f orca-server
 ```
 
-O pairing URL emitido pelo `orca serve` deve aparecer nos logs.
+The pairing URL emitted by `orca serve` must appear in the logs.
 
 ---
 
-## 37. Primeiro boot
+## 37. First boot
 
-Fluxo esperado:
+Expected flow:
 
 ```bash
 cp .env.example .env
 ```
 
-Configurar:
+Configure:
 
 ```text
-ORCA_PAIRING_ADDRESS=<IP_PRIVADO_DO_HOST>
+ORCA_PAIRING_ADDRESS=<HOST_PRIVATE_IP>
 ```
 
-Depois:
+Then:
 
 ```bash
 docker compose build
@@ -1063,28 +1061,28 @@ docker compose up -d
 docker logs -f orca-server
 ```
 
-Copiar a URL de pairing mostrada pelo Orca.
+Copy the pairing URL shown by Orca.
 
-No desktop:
+On the desktop:
 
 ```text
 Settings
 → Remote Orca Servers
 → Add Server
-→ colar pairing URL
+→ paste pairing URL
 ```
 
 ---
 
-## 38. Autenticação dos agentes
+## 38. Agent authentication
 
-Após primeiro boot:
+After first boot:
 
 ```bash
 docker exec -it orca-server bash
 ```
 
-Executar autenticação necessária:
+Run the required authentication:
 
 ```bash
 claude
@@ -1094,7 +1092,7 @@ cursor
 opencode
 ```
 
-Para Claude/Codex, preferir também testar:
+For Claude/Codex, also prefer testing:
 
 ```bash
 orca account add --agent claude
@@ -1102,7 +1100,7 @@ orca account add --agent codex
 orca account list
 ```
 
-Todas as credenciais devem sobreviver:
+All credentials must survive:
 
 ```bash
 docker compose down
@@ -1113,20 +1111,20 @@ docker compose up -d
 
 ## 39. Git
 
-Dentro do container permitir configuração:
+Inside the container, allow configuration:
 
 ```bash
 git config --global user.name
 git config --global user.email
 ```
 
-O arquivo ficará persistido em:
+The file will be persisted at:
 
 ```text
 /home/orca/.gitconfig
 ```
 
-Testar:
+Test:
 
 ```bash
 git clone
@@ -1140,15 +1138,15 @@ git push
 
 ## 40. GitHub CLI
 
-Permitir:
+Allow:
 
 ```bash
 gh auth login
 ```
 
-Credenciais devem permanecer no HOME persistente.
+Credentials must remain in the persistent HOME.
 
-Testar:
+Test:
 
 ```bash
 gh auth status
@@ -1158,43 +1156,43 @@ gh auth status
 
 ## 41. Workspaces
 
-Diretório padrão:
+Default directory:
 
 ```text
 /workspace
 ```
 
-Projetos adicionados ao Orca devem ficar nesse filesystem persistente.
+Projects added to Orca must live on this persistent filesystem.
 
-Nunca utilizar diretório temporário do container para projetos.
+Never use the container’s temporary directory for projects.
 
-Testar criação/remoção de worktrees e persistência após restart.
+Test worktree creation/removal and persistence after restart.
 
 ---
 
-## 42. Requisitos de segurança
+## 42. Security requirements
 
-Obrigatórios:
+Mandatory:
 
-- processo não-root;
-- sem `--privileged`;
-- sem FUSE;
-- sem Docker socket por padrão;
-- porta Orca fora da Internet pública;
-- secrets fora da imagem;
-- HOME persistente;
-- versões auditáveis;
-- downloads oficiais;
-- evitar `curl | sh` quando houver alternativa segura;
-- quando `curl | sh` for único método oficial, revisar script/origem e fixar versão quando possível.
+- non-root process;
+- no `--privileged`;
+- no FUSE;
+- no Docker socket by default;
+- Orca port not exposed to the public Internet;
+- secrets outside the image;
+- persistent HOME;
+- auditable versions;
+- official downloads;
+- avoid `curl | sh` when a safer alternative exists;
+- when `curl | sh` is the only official method, review the script/source and pin the version when possible.
 
 ---
 
 ## 43. README
 
-README deve conter somente instruções úteis e reproduzíveis.
+The README must contain only useful, reproducible instructions.
 
-Seções:
+Sections:
 
 ```text
 Requirements
@@ -1211,59 +1209,58 @@ Backup
 Troubleshooting
 ```
 
-Adicionar comando rápido:
+Add a quick command:
 
 ```bash
 ./scripts/doctor.sh
 ```
 
-ou:
+or:
 
 ```bash
 docker exec -it orca-server /scripts/doctor.sh
 ```
 
 ---
-
 ## 44. Backup
 
-Backup mínimo:
+Minimum backup:
 
 ```text
 data/home
 data/workspace
 ```
 
-Não incluir esses diretórios na imagem.
+Do not include these directories in the image.
 
-Documentar que `data/home` contém credenciais sensíveis.
+Document that `data/home` contains sensitive credentials.
 
-Backup deve ser criptografado.
-
----
-
-## 45. Critérios de aceite — Infraestrutura
-
-A implementação só está pronta quando:
-
-- [ ] `docker compose build` termina sem erros;
-- [ ] imagem usa Debian Slim;
-- [ ] container não roda como root;
-- [ ] container não requer `--privileged`;
-- [ ] container não depende de FUSE;
-- [ ] Orca inicia em headless;
-- [ ] porta 6768 fica ativa;
-- [ ] pairing URL é gerada;
-- [ ] Orca Desktop conecta no servidor;
-- [ ] restart do container preserva configuração;
-- [ ] restart do container preserva projetos;
-- [ ] restart do container preserva credenciais.
+Backup must be encrypted.
 
 ---
 
-## 46. Critérios de aceite — Orca
+## 45. Acceptance criteria — Infrastructure
 
-Validar:
+The implementation is ready only when:
+
+- [ ] `docker compose build` completes without errors;
+- [ ] image uses Debian Slim;
+- [ ] container does not run as root;
+- [ ] container does not require `--privileged`;
+- [ ] container does not depend on FUSE;
+- [ ] Orca starts in headless mode;
+- [ ] port 6768 becomes active;
+- [ ] pairing URL is generated;
+- [ ] Orca Desktop connects to the server;
+- [ ] container restart preserves configuration;
+- [ ] container restart preserves projects;
+- [ ] container restart preserves credentials.
+
+---
+
+## 46. Acceptance criteria — Orca
+
+Validate:
 
 ```bash
 orca serve
@@ -1271,19 +1268,19 @@ orca account list
 orca skills list
 ```
 
-Dentro do Orca remoto:
+Inside the remote Orca:
 
-- [ ] abrir projeto;
-- [ ] criar worktree;
-- [ ] abrir terminal;
-- [ ] iniciar agente;
-- [ ] fechar cliente desktop;
-- [ ] reconectar;
-- [ ] sessão continuar disponível.
+- [ ] open a project;
+- [ ] create a worktree;
+- [ ] open a terminal;
+- [ ] start an agent;
+- [ ] close the desktop client;
+- [ ] reconnect;
+- [ ] session remains available.
 
 ---
 
-## 47. Critérios de aceite — agentes
+## 47. Acceptance criteria — agents
 
 ### Claude
 
@@ -1291,9 +1288,9 @@ Dentro do Orca remoto:
 claude --version
 ```
 
-- [ ] autentica;
-- [ ] Orca detecta;
-- [ ] executa dentro de worktree.
+- [ ] authenticates;
+- [ ] Orca detects it;
+- [ ] runs inside a worktree.
 
 ### Codex
 
@@ -1301,9 +1298,9 @@ claude --version
 codex --version
 ```
 
-- [ ] autentica;
-- [ ] Orca lê `~/.codex`;
-- [ ] executa dentro de worktree.
+- [ ] authenticates;
+- [ ] Orca reads `~/.codex`;
+- [ ] runs inside a worktree.
 
 ### Gemini
 
@@ -1311,122 +1308,122 @@ codex --version
 gemini --version
 ```
 
-- [ ] autentica;
-- [ ] executa dentro de worktree.
+- [ ] authenticates;
+- [ ] runs inside a worktree.
 
 ### Cursor
 
-- [ ] CLI oficial instalada;
-- [ ] binário presente no PATH;
-- [ ] Orca detecta;
-- [ ] executa dentro de worktree.
+- [ ] official CLI installed;
+- [ ] binary present on PATH;
+- [ ] Orca detects it;
+- [ ] runs inside a worktree.
 
 ### OpenCode
 
-- [ ] instalado;
-- [ ] autenticado;
-- [ ] executa pelo Orca.
+- [ ] installed;
+- [ ] authenticated;
+- [ ] runs via Orca.
 
 ### Grok / Hermes / Qwen / Kimi
 
-Para cada agente:
+For each agent:
 
-- [ ] integração atual do Orca confirmada;
-- [ ] distribuição oficial identificada;
-- [ ] executável esperado identificado;
-- [ ] instalação reproduzível;
-- [ ] aparece no PATH;
-- [ ] inicia pelo Orca.
+- [ ] current Orca integration confirmed;
+- [ ] official distribution identified;
+- [ ] expected executable identified;
+- [ ] reproducible installation;
+- [ ] appears on PATH;
+- [ ] starts via Orca.
 
-Não criar instalação fictícia só para marcar o checkbox.
+Do not create a fictitious installation just to check the box.
 
 ---
 
-## 48. Teste de persistência
+## 48. Persistence test
 
-Executar:
+Run:
 
 ```bash
 docker compose up -d
 ```
 
-Autenticar os agentes.
+Authenticate the agents.
 
-Criar repo/worktree.
+Create a repo/worktree.
 
-Depois:
+Then:
 
 ```bash
 docker compose down
 docker compose up -d
 ```
 
-Confirmar:
+Confirm:
 
-- agentes continuam autenticados;
-- repositórios permanecem;
-- worktrees permanecem;
-- Orca reconhece estado anterior.
+- agents remain authenticated;
+- repositories remain;
+- worktrees remain;
+- Orca recognizes the previous state.
 
 ---
 
-## 49. Teste de atualização
+## 49. Upgrade test
 
-1. Subir versão A.
-2. Criar sessões/configuração.
-3. Alterar `ORCA_VERSION`.
+1. Bring up version A.
+2. Create sessions/configuration.
+3. Change `ORCA_VERSION`.
 4. Rebuild.
-5. Subir versão B.
-6. Confirmar volumes intactos.
-7. Confirmar pairing/runtime funcionando.
-8. Confirmar agentes funcionando.
+5. Bring up version B.
+6. Confirm volumes are intact.
+7. Confirm pairing/runtime is working.
+8. Confirm agents are working.
 
 ---
 
-## 50. Não fazer
+## 50. Do not
 
-Não:
+Do not:
 
-- usar Ubuntu;
-- usar Alpine;
-- instalar GUI completa;
-- instalar VNC;
-- usar systemd dentro do container;
-- usar supervisord sem necessidade;
-- executar container privilegiado;
-- usar FUSE;
-- embutir tokens;
-- copiar `~/.ssh` no Dockerfile;
-- expor Orca diretamente na Internet;
-- montar Docker socket por padrão;
-- inventar endpoints de health;
-- instalar pacotes não oficiais chamados "grok", "kimi", "hermes" etc. sem confirmação.
+- use Ubuntu;
+- use Alpine;
+- install a full GUI;
+- install VNC;
+- use systemd inside the container;
+- use supervisord unless necessary;
+- run a privileged container;
+- use FUSE;
+- embed tokens;
+- copy `~/.ssh` in the Dockerfile;
+- expose Orca directly on the Internet;
+- mount the Docker socket by default;
+- invent health endpoints;
+- install non-official packages named "grok", "kimi", "hermes", etc. without confirmation.
 
 ---
 
-## 51. Ordem de implementação para o Codex
+## 51. Implementation order for Codex
 
-Executar nesta ordem.
+Execute in this order.
 
-### Fase 1 — Base
+### Phase 1 — Base
 
-1. Criar estrutura.
-2. Criar Debian Slim.
-3. Criar usuário `orca`.
-4. Instalar dependências básicas.
-5. Instalar Node/Python/uv/git/gh.
+1. Create the structure.
+2. Create Debian Slim.
+3. Create the `orca` user.
+4. Install basic dependencies.
+5. Install Node/Python/uv/git/gh.
 
-### Fase 2 — Orca
+### Phase 2 — Orca
 
-6. Baixar versão fixa do Orca.
-7. Extrair AppImage.
-8. Criar wrapper `orca`.
-9. Configurar Xvfb.
-10. Fazer `orca serve` iniciar.
+6. Download a fixed Orca version.
+7. Extract the AppImage.
+8. Create the `orca` wrapper.
+9. Configure Xvfb.
+10. Get `orca serve` to start.
 
-PARAR aqui e validar Orca Server antes dos agentes.
+STOP here and validate Orca Server before the agents.
 
-### Fase 3 — agentes principais
+### Phase 3 — primary agents
 
 11. Claude Code.
 12. Codex.
@@ -1434,66 +1431,66 @@ PARAR aqui e validar Orca Server antes dos agentes.
 14. Cursor.
 15. OpenCode.
 
-Testar cada um individualmente.
+Test each one individually.
 
-### Fase 4 — agentes adicionais
+### Phase 4 — additional agents
 
 16. Grok.
 17. Hermes.
 18. Qwen.
 19. Kimi.
 
-Antes de cada instalação pesquisar a documentação oficial atual e integração atual do Orca.
+Before each installation, research the current official documentation and the current Orca integration.
 
-### Fase 5 — persistência
+### Phase 5 — persistence
 
 20. HOME.
 21. workspace.
-22. autenticação.
+22. authentication.
 23. restart.
 
-### Fase 6 — segurança
+### Phase 6 — security
 
-24. usuário não-root.
+24. non-root user.
 25. secrets.
 26. networking.
 27. healthcheck.
-28. revisar permissões.
+28. review permissions.
 
-### Fase 7 — qualidade
+### Phase 7 — quality
 
 29. doctor.
 30. versions.
 31. README.
-32. teste completo.
-33. reduzir imagem sem quebrar funcionalidade.
+32. full test.
+33. reduce image size without breaking functionality.
 
 ---
 
-## 52. Instrução principal para o Codex
+## 52. Primary instruction for Codex
 
-Você está implementando esta especificação.
+You are implementing this specification.
 
-Regras:
+Rules:
 
-1. Não assuma APIs, URLs de download, nomes de pacotes ou comandos que não tenham sido confirmados.
-2. Pesquise documentação oficial atual antes de instalar integrações que possam ter mudado.
-3. Priorize fontes oficiais dos fabricantes e o repositório/documentação oficial do Orca.
-4. Não substitua uma integração inexistente por pacote de terceiros com nome parecido.
-5. Faça alterações incrementais.
-6. Rode build/testes após cada fase.
-7. Quando algo não estiver disponível oficialmente, deixe a integração opcional e documente.
-8. Não comprometa os agentes já funcionais por causa de um agente opcional.
-9. Mantenha o container enxuto.
-10. Não usar Ubuntu nem Alpine.
-11. Não usar FUSE nem `--privileged`.
-12. Não montar Docker socket por padrão.
-13. Não expor credenciais.
-14. Ao final, executar e registrar os testes dos critérios de aceite.
+1. Do not assume APIs, download URLs, package names, or commands that have not been confirmed.
+2. Research current official documentation before installing integrations that may have changed.
+3. Prioritize official vendor sources and the official Orca repository/documentation.
+4. Do not replace a missing integration with a third-party package with a similar name.
+5. Make incremental changes.
+6. Run build/tests after each phase.
+7. When something is not available officially, leave the integration optional and document it.
+8. Do not compromise already working agents because of an optional agent.
+9. Keep the container lean.
+10. Do not use Ubuntu or Alpine.
+11. Do not use FUSE or `--privileged`.
+12. Do not mount the Docker socket by default.
+13. Do not expose credentials.
+14. At the end, run and record the acceptance criteria tests.
 
 ---
 
-## 53. Referências oficiais a consultar durante a implementação
+## 53. Official references to consult during implementation
 
 Orca:
 
@@ -1525,51 +1522,51 @@ Gemini CLI:
 https://github.com/google-gemini/gemini-cli
 ```
 
-Para Cursor, Grok, OpenCode, Hermes, Qwen e Kimi: localizar a documentação oficial vigente no momento da implementação e registrar no README qual fonte foi utilizada.
+For Cursor, Grok, OpenCode, Hermes, Qwen, and Kimi: locate the official documentation current at implementation time and record in the README which source was used.
 
 ---
 
-## 54. Resultado esperado
+## 54. Expected outcome
 
-Ao final deverá ser possível fazer:
+At the end it should be possible to:
 
 ```bash
 git clone <repo-do-orca-server-docker>
 cd orca-server
 cp .env.example .env
 
-# configurar ORCA_PAIRING_ADDRESS
+# configure ORCA_PAIRING_ADDRESS
 
 docker compose build
 docker compose up -d
 docker logs -f orca-server
 ```
 
-Depois conectar o Orca Desktop ao pairing URL e utilizar múltiplos agentes no servidor remoto.
+Then connect Orca Desktop to the pairing URL and use multiple agents on the remote server.
 
-O notebook deve atuar somente como cliente.
+The notebook must act only as a client.
 
-Todo processamento, terminal, Git/worktrees e agentes devem rodar no servidor Docker.
+All processing, terminal, Git/worktrees, and agents must run on the Docker server.
 
 
 ---
 
-# REVISÃO ARQUITETURAL — mise + Tailscale Sidecar
+# ARCHITECTURAL REVIEW — mise + Tailscale Sidecar
 
-> Esta seção substitui decisões anteriores conflitantes. Em caso de divergência, **esta revisão prevalece**.
+> This section supersedes prior conflicting decisions. In case of divergence, **this review prevails**.
 
-## 55. Arquitetura final
+## 55. Final architecture
 
-A stack deve ser composta por dois containers principais:
+The stack must consist of two main containers:
 
 ```text
 Docker Compose
 │
 ├── tailscale
-│   ├── nó próprio na Tailnet
-│   ├── estado persistente
+│   ├── own node on the Tailnet
+│   ├── persistent state
 │   ├── MagicDNS
-│   └── namespace de rede compartilhado
+│   └── shared network namespace
 │
 └── orca-dev
     ├── Debian Slim
@@ -1578,7 +1575,7 @@ Docker Compose
     │   ├── Node
     │   ├── Python
     │   ├── uv
-    │   └── ferramentas gerenciáveis
+    │   └── manageable tools
     ├── Claude Code
     ├── Codex
     ├── Gemini CLI
@@ -1589,27 +1586,27 @@ Docker Compose
     ├── Qwen
     ├── Kimi
     └── /workspace
-        ├── projeto A :3000
-        ├── projeto B :8000
-        ├── projeto C :8080
-        └── portas dinâmicas
+        ├── project A :3000
+        ├── project B :8000
+        ├── project C :8080
+        └── dynamic ports
 ```
 
-O container `orca-dev` deve utilizar:
+The `orca-dev` container must use:
 
 ```yaml
 network_mode: "service:tailscale"
 ```
 
-Dessa forma, Tailscale e Orca compartilham o mesmo namespace de rede.
+This way, Tailscale and Orca share the same network namespace.
 
-O nó Tailscale representa todo o ambiente remoto.
+The Tailscale node represents the entire remote environment.
 
 ---
 
-## 56. Objetivo de rede
+## 56. Network objective
 
-Não publicar individualmente as portas de desenvolvimento através de:
+Do not publish development ports individually via:
 
 ```yaml
 ports:
@@ -1618,39 +1615,38 @@ ports:
   - "8080:8080"
 ```
 
-A intenção é que qualquer servidor iniciado dentro do ambiente possa ser acessado diretamente pela Tailnet.
+The intent is that any server started inside the environment can be accessed directly over the Tailnet.
 
-Exemplo:
+Example:
 
 ```text
 orca-dev:6768   -> Orca
 orca-dev:3000   -> frontend
 orca-dev:8000   -> API
-orca-dev:8080   -> aplicação Java
+orca-dev:8080   -> Java application
 orca-dev:5173   -> Vite
 orca-dev:4200   -> Angular
-orca-dev:5000   -> serviço auxiliar
+orca-dev:5000   -> auxiliary service
 ```
 
-Não limitar previamente quais portas podem ser utilizadas.
+Do not pre-limit which ports may be used.
 
 ---
+## 57. Rule for development servers
 
-## 57. Regra para servidores de desenvolvimento
-
-Para acesso pela Tailnet, servidores criados pelos agentes devem escutar em:
+For Tailnet access, servers created by agents must listen on:
 
 ```text
 0.0.0.0
 ```
 
-e não exclusivamente:
+and not exclusively on:
 
 ```text
 127.0.0.1
 ```
 
-Exemplos:
+Examples:
 
 ### Vite
 
@@ -1676,22 +1672,22 @@ ng serve --host 0.0.0.0
 next dev -H 0.0.0.0
 ```
 
-Essa regra deve constar no README e nas instruções para agentes.
+This rule must appear in the README and in the agent instructions.
 
 ---
 
-## 58. Tailscale como sidecar
+## 58. Tailscale as a sidecar
 
-Usar imagem oficial:
+Use the official image:
 
 ```yaml
 tailscale:
   image: tailscale/tailscale:latest
 ```
 
-Preferencialmente permitir fixar a versão através de `.env`.
+Preferably allow pinning the version via `.env`.
 
-Exemplo conceitual:
+Conceptual example:
 
 ```yaml
 services:
@@ -1735,44 +1731,44 @@ services:
     restart: unless-stopped
 ```
 
-Validar a sintaxe final contra a documentação oficial atual do Tailscale antes de concluir.
+Validate the final syntax against the current official Tailscale documentation before finishing.
 
 ---
 
-## 59. Persistência do Tailscale
+## 59. Tailscale persistence
 
-Persistir:
+Persist:
 
 ```text
 /var/lib/tailscale
 ```
 
-em volume dedicado:
+in a dedicated volume:
 
 ```yaml
 volumes:
   tailscale-state:
 ```
 
-Objetivo:
+Goals:
 
-- preservar identidade do nó;
-- evitar novo registro a cada restart;
-- manter configuração;
-- reduzir necessidade de reutilizar auth key.
+- preserve node identity;
+- avoid re-registration on every restart;
+- keep configuration;
+- reduce the need to reuse the auth key.
 
-Nunca armazenar `TS_AUTHKEY` dentro da imagem.
+Never store `TS_AUTHKEY` inside the image.
 
 ---
 
-## 60. Auth Key do Tailscale
+## 60. Tailscale Auth Key
 
-`TS_AUTHKEY` deve entrar por:
+`TS_AUTHKEY` must be supplied via:
 
-- secret do Dokploy;
-- variável protegida;
+- Dokploy secret;
+- protected variable;
 - Docker secret;
-- `.env` somente em ambiente local.
+- `.env` only in a local environment.
 
 `.env.example`:
 
@@ -1782,28 +1778,28 @@ TAILSCALE_VERSION=latest
 TS_AUTHKEY=
 ```
 
-Não versionar `.env`.
+Do not version-control `.env`.
 
-Quando possível, usar auth key:
+When possible, use an auth key that is:
 
 - scoped;
-- reusable somente se necessário;
-- ephemeral somente se compatível com a persistência desejada;
-- com tags apropriadas.
+- reusable only if necessary;
+- ephemeral only if compatible with the desired persistence;
+- tagged appropriately.
 
-Documentar ACL/grants recomendados.
+Document recommended ACL/grants.
 
 ---
 
 ## 61. MagicDNS
 
-O hostname esperado deve ser:
+The expected hostname must be:
 
 ```text
 orca-dev
 ```
 
-Com MagicDNS habilitado, o cliente deve conseguir acessar:
+With MagicDNS enabled, the client should be able to reach:
 
 ```text
 http://orca-dev:3000
@@ -1811,51 +1807,51 @@ http://orca-dev:8000
 http://orca-dev:8080
 ```
 
-e Orca através da porta correspondente.
+and Orca on the corresponding port.
 
-Não depender de IP Tailscale fixado manualmente quando MagicDNS estiver disponível.
+Do not rely on a manually fixed Tailscale IP when MagicDNS is available.
 
 ---
 
 ## 62. Tailscale Serve
 
-Suportar opcionalmente Tailscale Serve.
+Optionally support Tailscale Serve.
 
-Objetivo:
+Goal:
 
-transformar um serviço interno:
+turn an internal service:
 
 ```text
 http://127.0.0.1:3000
 ```
 
-em endpoint HTTPS privado da Tailnet.
+into a private Tailnet HTTPS endpoint.
 
-Exemplo conceitual:
+Conceptual example:
 
 ```text
 https://orca-dev.<tailnet>.ts.net
 ```
 
-Não configurar Serve automaticamente para todas as portas.
+Do not configure Serve automatically for every port.
 
-Criar documentação/comandos auxiliares para o usuário habilitar quando desejar.
+Provide documentation/helper commands so the user can enable it when desired.
 
-Não utilizar Funnel por padrão.
+Do not use Funnel by default.
 
 ---
 
-## 63. Segurança de rede
+## 63. Network security
 
-Por padrão:
+By default:
 
-- nenhuma porta de desenvolvimento deve ser publicada na interface pública do host;
-- acesso deve ocorrer via Tailnet;
-- aplicar ACL/grants do Tailscale;
-- Orca Server não deve ficar diretamente disponível na Internet;
-- bancos de dados também devem permanecer privados.
+- no development ports should be published on the host’s public interface;
+- access must go through the Tailnet;
+- apply Tailscale ACL/grants;
+- Orca Server must not be directly available on the Internet;
+- databases must also remain private.
 
-Exemplo de recursos privados:
+Example private resources:
 
 ```text
 :5432 PostgreSQL
@@ -1864,27 +1860,27 @@ Exemplo de recursos privados:
 :9200 Elasticsearch
 ```
 
-O fato de uma porta estar acessível na Tailnet não significa que ela deva ser aberta para todos os membros.
+A port being reachable on the Tailnet does not mean it should be open to every member.
 
-Documentar controle por ACL/grants.
+Document ACL/grants-based access control.
 
 ---
 
 # mise
 
-## 64. mise como gerenciador central
+## 64. mise as the central manager
 
-Adicionar **mise** como componente obrigatório.
+Add **mise** as a required component.
 
-O mise deve gerenciar:
+mise must manage:
 
 - runtimes;
-- versões;
-- ferramentas compatíveis;
-- tasks de manutenção;
-- atualização dos AI CLIs quando adequado.
+- versions;
+- compatible tools;
+- maintenance tasks;
+- AI CLI updates when appropriate.
 
-Arquitetura:
+Architecture:
 
 ```text
 Debian Slim
@@ -1895,40 +1891,40 @@ Debian Slim
     ├── Node
     ├── Python
     ├── uv
-    ├── ferramentas
+    ├── tools
     └── tasks
         ├── agents:update
         ├── agents:versions
         └── agents:doctor
 ```
 
-Não instalar Node/Python manualmente fora do mise sem necessidade técnica comprovada.
+Do not install Node/Python manually outside mise without a proven technical need.
 
 ---
 
-## 65. Instalação do mise
+## 65. mise installation
 
-Instalar mise usando método oficial para Debian/Linux.
+Install mise using the official method for Debian/Linux.
 
-Fixar versão quando possível.
+Pin the version when possible.
 
-Validar:
+Validate:
 
 ```bash
 mise --version
 ```
 
-Adicionar corretamente ao PATH do usuário `orca`.
+Add it correctly to the `orca` user’s PATH.
 
-Não depender de `.bashrc` para funcionamento do processo Docker.
+Do not rely on `.bashrc` for Docker process operation.
 
-O PATH deve funcionar em shell interativo e não interativo.
+PATH must work in both interactive and non-interactive shells.
 
 ---
 
-## 66. Persistência do mise
+## 66. mise persistence
 
-Persistir dados do mise dentro do HOME:
+Persist mise data under HOME:
 
 ```text
 /home/orca/.local/share/mise
@@ -1936,27 +1932,27 @@ Persistir dados do mise dentro do HOME:
 /home/orca/.cache/mise
 ```
 
-Como `/home/orca` já é persistente, instalações e configurações sobrevivem ao restart/rebuild.
+Because `/home/orca` is already persistent, installations and configuration survive restart/rebuild.
 
-Isso permite atualizar agentes sem reconstruir toda a imagem.
+This allows updating agents without rebuilding the entire image.
 
 ---
 
-## 67. Configuração mise
+## 67. mise configuration
 
-Criar configuração versionada do projeto, preferencialmente:
+Create versioned project configuration, preferably:
 
 ```text
 /config/mise.toml
 ```
 
-ou equivalente.
+or equivalent.
 
-No primeiro boot, disponibilizar configuração base para o usuário.
+On first boot, provide a base configuration for the user.
 
-Não sobrescrever automaticamente configurações personalizadas existentes no volume.
+Do not automatically overwrite existing customized configuration on the volume.
 
-Exemplo conceitual:
+Conceptual example:
 
 ```toml
 [tools]
@@ -1965,27 +1961,27 @@ python = "3.13"
 uv = "latest"
 ```
 
-As versões reais devem ser verificadas no momento da implementação.
+Actual versions must be verified at implementation time.
 
 ---
 
-## 68. AI CLIs e mise
+## 68. AI CLIs and mise
 
-Existem três categorias.
+There are three categories.
 
-### Categoria A — gerenciável diretamente pelo mise
+### Category A — directly manageable by mise
 
-Quando existir backend/plugin confiável do mise, utilizar:
+When a reliable mise backend/plugin exists, use:
 
 ```text
 mise use ...
 ```
 
-### Categoria B — pacote npm
+### Category B — npm package
 
-Para agentes oficialmente distribuídos via npm, usar o Node fornecido pelo mise.
+For agents officially distributed via npm, use the Node provided by mise.
 
-Exemplos conhecidos:
+Known examples:
 
 ```text
 @anthropic-ai/claude-code
@@ -1993,45 +1989,45 @@ Exemplos conhecidos:
 @google/gemini-cli
 ```
 
-Não assumir que todos continuam usando npm: validar documentação oficial.
+Do not assume all continue to use npm: validate official documentation.
 
-### Categoria C — instalador/binário próprio
+### Category C — own installer/binary
 
-Cursor, OpenCode, Grok, Hermes, Qwen, Kimi ou outros podem possuir distribuição própria.
+Cursor, OpenCode, Grok, Hermes, Qwen, Kimi, or others may have their own distribution.
 
-Nestes casos:
+In these cases:
 
-- manter instalador separado;
-- verificar fonte oficial;
-- permitir atualização através de task;
-- não forçar artificialmente o uso de npm.
+- keep a separate installer;
+- verify the official source;
+- allow updates via a task;
+- do not artificially force npm usage.
 
 ---
 
-## 69. Diretório de CLIs atualizáveis
+## 69. Updatable CLI directory
 
-Ferramentas atualizáveis não devem depender de camada imutável da imagem quando isso impedir upgrades rápidos.
+Updatable tools must not depend on an immutable image layer when that blocks fast upgrades.
 
-Utilizar diretório persistente, por exemplo:
+Use a persistent directory, for example:
 
 ```text
 /home/orca/.local
 ```
 
-Garantir PATH:
+Ensure PATH includes:
 
 ```text
 /home/orca/.local/bin
 /home/orca/.local/share/mise/shims
 ```
 
-antes dos caminhos globais quando apropriado.
+ahead of global paths when appropriate.
 
 ---
 
-## 70. Tasks mise
+## 70. mise tasks
 
-Criar tasks:
+Create tasks:
 
 ```text
 agents:update
@@ -2039,7 +2035,7 @@ agents:versions
 agents:doctor
 ```
 
-Uso:
+Usage:
 
 ```bash
 mise run agents:update
@@ -2047,7 +2043,7 @@ mise run agents:versions
 mise run agents:doctor
 ```
 
-Opcionalmente:
+Optionally:
 
 ```text
 agents:update:claude
@@ -2058,20 +2054,19 @@ agents:update:opencode
 ```
 
 ---
-
 ## 71. agents:update
 
-Deve:
+Must:
 
-1. atualizar runtimes gerenciados pelo mise quando solicitado;
-2. atualizar cada AI CLI pelo mecanismo oficial;
-3. continuar processando agentes independentes quando um opcional falhar;
-4. apresentar resumo final;
-5. retornar status útil;
-6. não apagar credenciais;
-7. não modificar `/workspace`.
+1. update runtimes managed by mise when requested;
+2. update each AI CLI via its official mechanism;
+3. continue processing independent agents when an optional one fails;
+4. present a final summary;
+5. return a useful status;
+6. not delete credentials;
+7. not modify `/workspace`.
 
-Saída conceitual:
+Conceptual output:
 
 ```text
 Updating Claude...
@@ -2092,22 +2087,22 @@ Updating Hermes...
 
 ---
 
-## 72. Política de atualização
+## 72. Update policy
 
-AI CLIs mudam rapidamente.
+AI CLIs change rapidly.
 
-Portanto separar:
+Therefore separate:
 
-### Base relativamente estável
+### Relatively stable base
 
 ```text
 Debian
-bibliotecas Linux
+Linux libraries
 Orca runtime
 mise
 ```
 
-### Ferramentas de alta frequência
+### High-frequency tools
 
 ```text
 Claude Code
@@ -2121,68 +2116,68 @@ Qwen
 Kimi
 ```
 
-As ferramentas de alta frequência devem poder ser atualizadas sem rebuild completo.
+High-frequency tools must be updatable without a full rebuild.
 
 ---
 
-## 73. Atualização automática
+## 73. Automatic updates
 
-Adicionar:
+Add:
 
 ```text
 AUTO_UPDATE_AGENTS=false
 ```
 
-Default obrigatório:
+Mandatory default:
 
 ```text
 false
 ```
 
-Se:
+If:
 
 ```text
 AUTO_UPDATE_AGENTS=true
 ```
 
-o entrypoint pode executar:
+the entrypoint may run:
 
 ```bash
 mise run agents:update
 ```
 
-antes do Orca.
+before Orca.
 
-Porém falha em atualização de agente opcional não deve impedir Orca de iniciar.
+However, failure updating an optional agent must not prevent Orca from starting.
 
-Registrar claramente no log.
+Log clearly.
 
 ---
 
-## 74. Atualização manual recomendada
+## 74. Recommended manual update
 
-Fluxo recomendado:
+Recommended flow:
 
 ```bash
 docker exec -it orca-server bash
 mise run agents:update
 ```
 
-ou:
+or:
 
 ```bash
 docker compose exec orca mise run agents:update
 ```
 
-Isso permite decidir quando atualizar.
+This allows deciding when to update.
 
 ---
 
-## 75. Canal stable/latest
+## 75. stable/latest channel
 
-Quando a ferramenta suportar, permitir configuração individual.
+When the tool supports it, allow per-tool configuration.
 
-Exemplo:
+Example:
 
 ```text
 CLAUDE_CHANNEL=latest
@@ -2191,27 +2186,27 @@ GEMINI_CHANNEL=latest
 CURSOR_CHANNEL=latest
 ```
 
-Ou versões específicas:
+Or specific versions:
 
 ```text
 CLAUDE_VERSION=x.y.z
 ```
 
-Não assumir que todos os agentes usam o mesmo conceito de channel.
+Do not assume all agents use the same channel concept.
 
 ---
 
 ## 76. Rollback
 
-Antes de atualizar um agente, quando tecnicamente possível, registrar versão atual.
+Before updating an agent, when technically possible, record the current version.
 
-Criar:
+Create:
 
 ```text
 /home/orca/.local/state/orca-agent-manager/
 ```
 
-Registrar histórico:
+Record history:
 
 ```text
 agent
@@ -2221,15 +2216,15 @@ timestamp
 result
 ```
 
-Se o gerenciador utilizado suportar rollback nativamente, documentar.
+If the manager in use supports native rollback, document it.
 
-Não criar mecanismo complexo próprio quando mise/npm já resolver.
+Do not build a complex custom mechanism when mise/npm already covers it.
 
 ---
 
-## 77. Doctor revisado
+## 77. Revised doctor
 
-`doctor` deve validar também:
+`doctor` must also validate:
 
 ```text
 [OK] tailscale connectivity
@@ -2245,7 +2240,7 @@ Não criar mecanismo complexo próprio quando mise/npm já resolver.
 ...
 ```
 
-Também mostrar:
+Also show:
 
 ```text
 Tailscale hostname
@@ -2256,21 +2251,21 @@ HOME
 mise data directory
 ```
 
-Não imprimir tokens/secrets.
+Do not print tokens/secrets.
 
 ---
 
-## 78. Diagnóstico de portas
+## 78. Port diagnostics
 
-Adicionar ferramenta/script:
+Add tool/script:
 
 ```text
 scripts/ports.sh
 ```
 
-Mostrar portas escutando dentro do namespace compartilhado.
+Show listening ports inside the shared namespace.
 
-Exemplo:
+Example:
 
 ```text
 PORT   PROCESS
@@ -2280,69 +2275,69 @@ PORT   PROCESS
 8080   java
 ```
 
-Pode usar:
+May use:
 
 ```bash
 ss -lntp
 ```
 
-quando disponível.
+when available.
 
-Isso facilita descobrir servidores iniciados pelos agentes.
+This makes it easier to discover servers started by agents.
 
 ---
 
-## 79. Acesso aos previews
+## 79. Preview access
 
-README deve explicar:
+README must explain:
 
-Se um agente iniciar:
+If an agent starts:
 
 ```text
 Vite :5173
 ```
 
-acessar:
+access:
 
 ```text
 http://orca-dev:5173
 ```
 
-Se iniciar:
+If it starts:
 
 ```text
 FastAPI :8000
 ```
 
-acessar:
+access:
 
 ```text
 http://orca-dev:8000
 ```
 
-Se iniciar:
+If it starts:
 
 ```text
 Spring Boot :8080
 ```
 
-acessar:
+access:
 
 ```text
 http://orca-dev:8080
 ```
 
-Não é necessário alterar Docker Compose para cada nova porta.
+There is no need to change Docker Compose for each new port.
 
 ---
 
-## 80. Bancos iniciados no próprio container
+## 80. Databases started in the same container
 
-Evitar instalar bancos diretamente no `orca-dev`.
+Avoid installing databases directly in `orca-dev`.
 
-Para serviços auxiliares permanentes, preferir containers separados.
+For permanent auxiliary services, prefer separate containers.
 
-Exemplo:
+Example:
 
 ```text
 compose
@@ -2353,80 +2348,80 @@ compose
 └── ...
 ```
 
-Se esses serviços precisarem ser acessados diretamente pela Tailnet, projetar conscientemente o networking.
+If those services need direct Tailnet access, design networking deliberately.
 
-Não colocar tudo no mesmo container apenas para compartilhar o IP.
+Do not put everything in the same container solely to share the IP.
 
 ---
 
-## 81. Containers criados durante desenvolvimento
+## 81. Containers created during development
 
-Os agentes podem precisar executar Docker.
+Agents may need to run Docker.
 
-Manter a decisão anterior:
+Keep the prior decision:
 
-**não montar `/var/run/docker.sock` por padrão.**
+**do not mount `/var/run/docker.sock` by default.**
 
-Criar opção explícita/perfil.
+Create an explicit option/profile.
 
-Exemplo:
+Example:
 
 ```bash
 docker compose --profile docker-access up -d
 ```
 
-Avaliar socket proxy ou ambiente isolado.
+Evaluate a socket proxy or isolated environment.
 
-Documentar que montar o socket dá poder equivalente a root no host.
+Document that mounting the socket grants power equivalent to root on the host.
 
 ---
 
 ## 82. Orca + Tailscale
 
-O Orca deve anunciar endereço alcançável pelo cliente.
+Orca must advertise an address reachable by the client.
 
-Como `orca` compartilha o namespace do Tailscale, usar o IP/hostname correto da Tailnet quando necessário.
+Since `orca` shares the Tailscale namespace, use the correct Tailnet IP/hostname when needed.
 
-Não hardcodar IP.
+Do not hardcode the IP.
 
-O entrypoint deve poder descobrir o IPv4 do Tailscale de forma confiável, preferencialmente via:
+The entrypoint must be able to discover the Tailscale IPv4 reliably, preferably via:
 
 ```bash
 tailscale ip -4
 ```
 
-Porém, como o CLI `tailscale` está no sidecar e pode não existir dentro do container Orca, avaliar uma destas opções:
+However, because the `tailscale` CLI is in the sidecar and may not exist inside the Orca container, evaluate one of these options:
 
-1. montar socket do `tailscaled` somente se oficialmente suportado;
-2. fornecer `ORCA_PAIRING_ADDRESS`;
-3. usar hostname MagicDNS;
-4. mecanismo oficial documentado pelo Orca/Tailscale.
+1. mount the `tailscaled` socket only if officially supported;
+2. provide `ORCA_PAIRING_ADDRESS`;
+3. use the MagicDNS hostname;
+4. the official mechanism documented by Orca/Tailscale.
 
-Preferir a solução mais simples e segura.
+Prefer the simplest and safest solution.
 
-Não criar dependência frágil entre containers.
+Do not create a fragile dependency between containers.
 
 ---
 
-## 83. Healthchecks da stack
+## 83. Stack healthchecks
 
 ### Tailscale
 
-Healthcheck deve confirmar que `tailscaled` está operacional/conectado usando mecanismo oficial disponível.
+Healthcheck must confirm that `tailscaled` is operational/connected using the available official mechanism.
 
 ### Orca
 
-Somente iniciar após networking necessário estar disponível quando isso for requisito real.
+Only start after required networking is available when that is a real requirement.
 
-Não criar loop infinito silencioso.
+Do not create a silent infinite loop.
 
-Adicionar timeout e mensagens claras.
+Add timeout and clear messages.
 
 ---
 
-## 84. Compose final esperado
+## 84. Expected final Compose
 
-O Compose deve suportar aproximadamente:
+Compose should support approximately:
 
 ```text
 services:
@@ -2439,19 +2434,19 @@ volumes:
   workspace
 ```
 
-E opcionalmente profiles:
+And optionally profiles:
 
 ```text
 docker-access
 ```
 
-Não publicar portas públicas por padrão.
+Do not publish public ports by default.
 
 ---
 
-## 85. Variáveis finais
+## 85. Final variables
 
-`.env.example` deve prever:
+`.env.example` should provide for:
 
 ```text
 # Orca
@@ -2485,123 +2480,122 @@ INSTALL_QWEN=false
 INSTALL_KIMI=false
 ```
 
-Versões/defaults exatos devem ser confirmados na implementação.
+Exact versions/defaults must be confirmed during implementation.
+
+---
+## 86. Additional acceptance criteria — mise
+
+- [ ] `mise --version` works;
+- [ ] Node is provided by mise;
+- [ ] Python is provided by mise when applicable;
+- [ ] `mise run agents:update` works;
+- [ ] Claude updates do not require a rebuild;
+- [ ] Codex updates do not require a rebuild;
+- [ ] Gemini updates do not require a rebuild;
+- [ ] versions survive restart;
+- [ ] credentials survive updates;
+- [ ] updating one agent does not destroy the others.
 
 ---
 
-## 86. Critérios de aceite adicionais — mise
+## 87. Additional acceptance criteria — Tailscale
 
-- [ ] `mise --version` funciona;
-- [ ] Node é fornecido pelo mise;
-- [ ] Python é fornecido pelo mise quando aplicável;
-- [ ] `mise run agents:update` funciona;
-- [ ] atualização de Claude não requer rebuild;
-- [ ] atualização de Codex não requer rebuild;
-- [ ] atualização de Gemini não requer rebuild;
-- [ ] versões sobrevivem ao restart;
-- [ ] credenciais sobrevivem às atualizações;
-- [ ] atualização de um agente não destrói os demais.
-
----
-
-## 87. Critérios de aceite adicionais — Tailscale
-
-- [ ] sidecar aparece na Tailnet;
-- [ ] identidade sobrevive ao restart;
-- [ ] MagicDNS resolve `orca-dev`;
-- [ ] Orca é acessível pela Tailnet;
-- [ ] porta 3000 aberta pelo projeto é acessível;
-- [ ] porta 8000 aberta pelo projeto é acessível;
-- [ ] porta 8080 aberta pelo projeto é acessível;
-- [ ] nova porta aleatória de desenvolvimento não exige rebuild/edição do Compose;
-- [ ] nenhuma dessas portas fica pública na Internet por padrão;
-- [ ] ACL/grants podem restringir acesso.
+- [ ] sidecar appears on the Tailnet;
+- [ ] identity survives restart;
+- [ ] MagicDNS resolves `orca-dev`;
+- [ ] Orca is reachable via the Tailnet;
+- [ ] port 3000 opened by the project is reachable;
+- [ ] port 8000 opened by the project is reachable;
+- [ ] port 8080 opened by the project is reachable;
+- [ ] a new random development port does not require a Compose rebuild/edit;
+- [ ] none of these ports is public on the Internet by default;
+- [ ] ACL/grants can restrict access.
 
 ---
 
-## 88. Teste obrigatório de portas dinâmicas
+## 88. Mandatory dynamic ports test
 
-Dentro do `orca-dev`:
+Inside `orca-dev`:
 
 ```bash
 python -m http.server 9123 --bind 0.0.0.0
 ```
 
-De outro dispositivo da Tailnet:
+From another device on the Tailnet:
 
 ```text
 http://orca-dev:9123
 ```
 
-deve responder.
+must respond.
 
-Depois testar outra porta sem alterar Compose:
+Then test another port without changing Compose:
 
 ```bash
 python -m http.server 9876 --bind 0.0.0.0
 ```
 
-Acessar:
+Access:
 
 ```text
 http://orca-dev:9876
 ```
 
-Esse teste comprova o requisito principal de previews/serviços dinâmicos.
+This test proves the main requirement for dynamic previews/services.
 
 ---
 
-## 89. Teste obrigatório de atualização sem rebuild
+## 89. Mandatory update-without-rebuild test
 
-1. subir stack;
-2. registrar versões dos agentes;
-3. executar `mise run agents:update`;
-4. verificar novas versões quando houver;
-5. confirmar Orca continua funcionando;
-6. confirmar autenticações;
-7. confirmar workspace;
-8. reiniciar container;
-9. confirmar versões atualizadas persistidas;
-10. confirmar que nenhuma imagem precisou ser reconstruída.
+1. bring up the stack;
+2. record agent versions;
+3. run `mise run agents:update`;
+4. verify new versions when available;
+5. confirm Orca keeps working;
+6. confirm authentications;
+7. confirm workspace;
+8. restart the container;
+9. confirm updated versions are persisted;
+10. confirm that no image needed to be rebuilt.
 
 ---
 
-## 90. Nova ordem de implementação
+## 90. New implementation order
 
-### Fase A — Docker base
+### Phase A — Base Docker
 
 1. Debian Slim.
-2. usuário `orca`.
-3. dependências mínimas.
+2. `orca` user.
+3. minimal dependencies.
 4. volumes.
 
-### Fase B — mise
+### Phase B — mise
 
-5. instalar mise.
-6. PATH correto.
+5. install mise.
+6. correct PATH.
 7. Node.
 8. Python.
 9. uv.
-10. tasks básicas.
+10. basic tasks.
 
-### Fase C — Orca
+### Phase C — Orca
 
-11. instalar/extrair Orca.
+11. install/extract Orca.
 12. wrapper.
-13. Xvfb somente se necessário.
-14. validar `orca serve`.
+13. Xvfb only if necessary.
+14. validate `orca serve`.
 
-### Fase D — Tailscale
+### Phase D — Tailscale
 
-15. sidecar oficial.
-16. estado persistente.
-17. autenticação.
+15. official sidecar.
+16. persistent state.
+17. authentication.
 18. MagicDNS.
-19. namespace compartilhado.
-20. testar porta Orca.
-21. testar portas dinâmicas.
+19. shared namespace.
+20. test Orca port.
+21. test dynamic ports.
 
-### Fase E — agentes principais
+### Phase E — main agents
 
 22. Claude.
 23. Codex.
@@ -2609,37 +2603,37 @@ Esse teste comprova o requisito principal de previews/serviços dinâmicos.
 25. Cursor.
 26. OpenCode.
 
-### Fase F — atualização
+### Phase F — update
 
 27. `agents:update`.
 28. `agents:versions`.
 29. `agents:doctor`.
-30. persistência.
-31. rollback/documentação.
+30. persistence.
+31. rollback/documentation.
 
-### Fase G — agentes adicionais
+### Phase G — additional agents
 
 32. Grok.
 33. Hermes.
 34. Qwen.
 35. Kimi.
 
-Somente instalar após confirmação da integração/distribuição oficial.
+Install only after confirmation of official integration/distribution.
 
-### Fase H — segurança/qualidade
+### Phase H — security/quality
 
 36. ACL/grants.
 37. secrets.
 38. healthchecks.
 39. ports script.
 40. README.
-41. testes completos.
+41. full tests.
 
 ---
 
-## 91. Resultado arquitetural final
+## 91. Final architectural outcome
 
-O resultado deve se comportar como uma **workstation de desenvolvimento remota e persistente**:
+The result must behave as a **remote, persistent development workstation**:
 
 ```text
                 ┌─────────────────────┐
@@ -2659,7 +2653,7 @@ O resultado deve se comportar como uma **workstation de desenvolvimento remota e
                 │ :5173 Vite          │
                 │ :8000 API           │
                 │ :8080 Java          │
-                │ :xxxx qualquer dev  │
+                │ :xxxx any dev       │
                 └─────────┬───────────┘
                           │
                  shared net namespace
@@ -2674,18 +2668,18 @@ O resultado deve se comportar como uma **workstation de desenvolvimento remota e
                 └─────────────────────┘
 ```
 
-Características obrigatórias:
+Mandatory characteristics:
 
-- ambiente enxuto;
+- lean environment;
 - Debian Slim;
-- Orca headless;
-- mise como camada de gerenciamento/atualização;
-- AI CLIs atualizáveis sem rebuild completo;
+- headless Orca;
+- mise as the management/update layer;
+- AI CLIs updatable without a full rebuild;
 - Tailscale sidecar;
-- acesso privado a portas dinâmicas;
-- nenhuma necessidade de declarar previamente cada porta de desenvolvimento;
-- persistência de HOME/workspaces/Tailscale;
-- sem exposição pública por padrão;
-- sem container privilegiado para Orca;
-- sem Docker socket por padrão;
-- adequado para Dokploy/Docker Compose.
+- private access to dynamic ports;
+- no need to pre-declare every development port;
+- HOME/workspaces/Tailscale persistence;
+- no public exposure by default;
+- no privileged container for Orca;
+- no Docker socket by default;
+- suitable for Dokploy/Docker Compose.
