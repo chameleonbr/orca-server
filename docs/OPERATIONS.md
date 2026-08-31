@@ -2,6 +2,9 @@
 
 Everything runs **inside the container**. The host only runs `docker compose up/down`.
 
+**First boot / pair Orca Server from scratch?** Use **[SETUP.md](SETUP.md)**  
+(Docker Compose init, `.env`, Tailscale, Desktop pairing, agent login).
+
 ## Current status (A–E + pair)
 
 | Item | State |

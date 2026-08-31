@@ -4,6 +4,12 @@ Remote development workstation with headless **Orca Server**, **mise**, AI agent
 
 > Status: Phases A–E + **Desktop pair OK** on host `dhh` (`orca-dev`). Next: agent accounts on the remote runtime.
 
+**First time here?** Follow the full walkthrough:
+
+→ **[docs/SETUP.md](docs/SETUP.md)** — initialize Docker Compose, configure `.env`, start the stack, and authenticate (pair) Orca Server from Desktop.
+
+Day-2 ops (mup, agent logins, ports): [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
 ## Post-pair — accounts
 
 After pairing, authenticate agents **on the server** (credentials live on the volume):
@@ -11,7 +17,7 @@ After pairing, authenticate agents **on the server** (credentials live on the vo
 - Orca Desktop UI on the paired remote runtime, or
 - `docker compose exec orca bash` → `claude` / `codex login` / `gemini` / `opencode`
 
-Details: [docs/OPERATIONS.md](docs/OPERATIONS.md).
+Details: [docs/OPERATIONS.md](docs/OPERATIONS.md) · full first-boot guide: [docs/SETUP.md](docs/SETUP.md).
 
 ## What it is
 
@@ -154,6 +160,9 @@ State (pairing, projects) lives in `~/.config/{orca,Orca}` — **independent of 
 
 ## Quick start
 
+> Step-by-step (env, Tailscale, pair, agent auth, troubleshooting):  
+> **[docs/SETUP.md](docs/SETUP.md)**
+
 ```bash
 cp .env.example .env
 # edit: TS_AUTHKEY, ORCA_PAIRING_ADDRESS (Tailscale IP/hostname — do not use 0.0.0.0)
@@ -170,6 +179,12 @@ Pairing in Orca Desktop:
 Settings → Remote Orca Servers → Add Server → paste pairing URL from the logs
 ```
 
+Get the URL:
+
+```bash
+docker compose logs orca 2>&1 | grep 'Pairing URL'
+```
+
 Logs should look like:
 
 ```text
@@ -179,12 +194,12 @@ Advertised endpoint: ws://orca-dev:6768
 Pairing URL: orca://pair?code=...
 ```
 
-Authenticate agents:
+Authenticate agents (after pair):
 
 ```bash
-docker compose exec orca bash
+docker compose exec -it orca bash
 claude
-codex
+codex login
 gemini
 # Prefer Desktop UI or native CLI login while `orca serve` is running
 # (`orca account *` is blocked by Electron single-instance lock)
@@ -257,8 +272,9 @@ orca-server/
 ├── .env.example
 ├── config/mise.toml          # tasks: mup, orca:*, agents:*
 ├── config/mup.crontab        # reference (real schedule via MUP_CRON)
-├── docs/IMPLEMENTATION_PLAN.md
-├── docs/OPERATIONS.md
+├── docs/SETUP.md                 # first-boot + pair/auth walkthrough
+├── docs/OPERATIONS.md            # day-2 ops
+├── docs/IMPLEMENTATION_PLAN.md   # full spec
 └── scripts/
     ├── entrypoint.sh
     ├── supervise.sh          # supercronic + orca child + recycle
