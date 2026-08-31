@@ -82,6 +82,44 @@ docker compose exec orca python3 -m http.server 9123 --bind 0.0.0.0
 # on another Tailnet device: http://orca-dev:9123
 ```
 
+## Phase H — hardening + dynamic ports (validated)
+
+Recorded on host stack (`orca-dev` / `100.78.39.19`).
+
+### Dynamic ports (§88)
+
+No Compose port publish. Two ephemeral servers inside the container:
+
+| Bind | From Tailnet client | Result |
+|------|---------------------|--------|
+| `0.0.0.0:9123` | `http://100.78.39.19:9123` | **HTTP 200** |
+| `0.0.0.0:9876` | `http://100.78.39.19:9876` | **HTTP 200** |
+| `0.0.0.0:9123` | `http://orca-dev:9123` (MagicDNS) | **HTTP 200** |
+
+Compose was **not** changed between ports — proves dynamic previews on the Tailnet.
+
+### Security checklist
+
+| Check | Result |
+|-------|--------|
+| Host `ports:` published | **none** in rendered compose |
+| `--privileged` / docker.sock default | **absent** |
+| Process user | `uid=1000(orca)` |
+| `.env` in git | **ignored** |
+| Orca FUSE / privileged | **not used** |
+| Access path | Tailnet only (`orca-dev`) |
+
+### Update-without-rebuild (related)
+
+`mup` (post symlink fix `60b898b`): tools + Orca + agents **failures=0**, no image rebuild.
+
+### Residual (non-blocking)
+
+- dbus / X11 software bitmap noise in headless logs — expected
+- Cursor CLI still missing (no stable official install URL)
+- Agent provider logins = **Phase F** (run inside Orca shell / Desktop UI)
+- Optional agents (Grok/Hermes/Qwen/Kimi) = Phase G
+
 ## Sensitive files
 
 - `.env` (`TS_AUTHKEY`) — gitignored, never commit

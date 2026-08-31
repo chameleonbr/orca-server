@@ -2,7 +2,7 @@
 
 Remote development workstation with headless **Orca Server**, **mise**, AI agents, and private access via a **Tailscale sidecar**.
 
-> Status: Phases A–E + **Desktop pair OK** on host `dhh` (`orca-dev`). Next: agent accounts on the remote runtime.
+> Status: Phases A–E + **pair OK** + **Phase H dynamic ports validated**. Phase F (agent logins) is done inside Orca UI/shell by the operator.
 
 **First time here?** Follow the full walkthrough:
 
@@ -301,9 +301,9 @@ See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 | C | Orca runtime on volume + update-orca | done |
 | D | Tailscale sidecar + dynamic ports | **done** (pair OK) |
 | E | Agents + **mup** + **in-container** schedule | **done** (claude/codex/gemini/opencode) |
-| F | Host accounts + official Cursor | **in progress** (pair done → agent login) |
+| F | Host accounts + official Cursor | **operator** (login inside Orca; Cursor install TBD) |
 | G | Optional agents | pending |
-| H | Final hardening + formal dynamic-port test | pending |
+| H | Final hardening + formal dynamic-port test | **done** (9123/9876 via Tailnet 200) |
 
 ## Upgrade
 
