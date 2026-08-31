@@ -14,7 +14,18 @@
 #   INSTALL_*=true|false      agent flags
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks so `mup` → /usr/local/bin/mup still finds sibling scripts in /scripts
+_mup_src="${BASH_SOURCE[0]}"
+while [[ -L "${_mup_src}" ]]; do
+  _mup_dir="$(cd "$(dirname "${_mup_src}")" && pwd)"
+  _mup_src="$(readlink "${_mup_src}")"
+  [[ "${_mup_src}" != /* ]] && _mup_src="${_mup_dir}/${_mup_src}"
+done
+SCRIPT_DIR="$(cd "$(dirname "${_mup_src}")" && pwd)"
+# Image layout fallback
+if [[ ! -x "${SCRIPT_DIR}/update-orca.sh" && -x /scripts/update-orca.sh ]]; then
+  SCRIPT_DIR="/scripts"
+fi
 export HOME="${HOME:-/home/orca}"
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:/usr/local/bin:/scripts:${PATH}"
 export ORCA_INSTALL_DIR="${ORCA_INSTALL_DIR:-${HOME}/.local/share/orca}"
