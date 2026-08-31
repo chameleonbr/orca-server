@@ -98,8 +98,8 @@ TAILSCALE_HOSTNAME=orca-dev
 ORCA_PAIRING_ADDRESS=orca-dev
 
 # --- git identity inside the container (applied on every boot) ---
-GIT_USER_NAME=Your Name
-GIT_USER_EMAIL=you@example.com
+GIT_USER_NAME=John Doe
+GIT_USER_EMAIL=john@doe.com
 GIT_INIT_DEFAULT_BRANCH=main
 
 # --- recommended ---
