@@ -146,10 +146,10 @@ State (pairing, projects) lives in `~/.config/{orca,Orca}` — **independent of 
 | Gemini CLI | on | npm `@google/gemini-cli` |
 | Cursor Agent | on | https://cursor.com/install (`agent` / `cursor-agent`) |
 | OpenCode | on | https://opencode.ai/install |
-| Grok | on | npm `@xai-official/grok` → `grok` |
-| Hermes | on | PyPI `hermes-agent` → `hermes` |
-| Qwen Code | on | npm `@qwen-code/qwen-code` → `qwen` |
-| Kimi | on | npm `@moonshot-ai/kimi-code` → `kimi` |
+| Grok | **off** | npm `@xai-official/grok` → `grok` (`INSTALL_GROK=true`) |
+| Hermes | **off** | PyPI `hermes-agent` → `hermes` (`INSTALL_HERMES=true`) |
+| Qwen Code | **off** | npm `@qwen-code/qwen-code` → `qwen` (`INSTALL_QWEN=true`) |
+| Kimi | **off** | npm `@moonshot-ai/kimi-code` → `kimi` (`INSTALL_KIMI=true`) |
 
 ## Requirements
 

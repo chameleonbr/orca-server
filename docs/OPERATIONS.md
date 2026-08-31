@@ -130,23 +130,23 @@ Installed on volume via `update-agents` / `mup` (no image rebuild):
 | Qwen Code | `qwen` | npm `@qwen-code/qwen-code` | 0.22.3 |
 | Kimi | `kimi` | npm `@moonshot-ai/kimi-code` | 0.39.1 |
 
-Flags (default **on** in compose / `.env.example`):
+Flags (default **off** — opt in via `.env`):
 
 ```text
 INSTALL_CURSOR=true
-INSTALL_GROK=true
-INSTALL_HERMES=true
-INSTALL_QWEN=true
-INSTALL_KIMI=true
+INSTALL_GROK=false
+INSTALL_HERMES=false
+INSTALL_QWEN=false
+INSTALL_KIMI=false
 CURSOR_INSTALL_URL=https://cursor.com/install
 ```
 
-Re-run:
+Enable one or more, then:
 
 ```bash
+docker compose exec -e INSTALL_GROK=true -e INSTALL_QWEN=true orca /scripts/update-agents.sh
+# or set flags in .env and:
 docker compose exec orca mup
-# or agents only:
-docker compose exec orca /scripts/update-agents.sh
 ```
 
 ## Sensitive files

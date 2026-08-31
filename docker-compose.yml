@@ -47,10 +47,10 @@ services:
         INSTALL_GEMINI: ${INSTALL_GEMINI:-true}
         INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
         INSTALL_OPENCODE: ${INSTALL_OPENCODE:-true}
-        INSTALL_GROK: ${INSTALL_GROK:-true}
-        INSTALL_HERMES: ${INSTALL_HERMES:-true}
-        INSTALL_QWEN: ${INSTALL_QWEN:-true}
-        INSTALL_KIMI: ${INSTALL_KIMI:-true}
+        INSTALL_GROK: ${INSTALL_GROK:-false}
+        INSTALL_HERMES: ${INSTALL_HERMES:-false}
+        INSTALL_QWEN: ${INSTALL_QWEN:-false}
+        INSTALL_KIMI: ${INSTALL_KIMI:-false}
     image: orca-server:local
     container_name: orca-server
     network_mode: "service:tailscale"
@@ -82,10 +82,10 @@ services:
       INSTALL_GEMINI: ${INSTALL_GEMINI:-true}
       INSTALL_CURSOR: ${INSTALL_CURSOR:-true}
       INSTALL_OPENCODE: ${INSTALL_OPENCODE:-true}
-      INSTALL_GROK: ${INSTALL_GROK:-true}
-      INSTALL_HERMES: ${INSTALL_HERMES:-true}
-      INSTALL_QWEN: ${INSTALL_QWEN:-true}
-      INSTALL_KIMI: ${INSTALL_KIMI:-true}
+      INSTALL_GROK: ${INSTALL_GROK:-false}
+      INSTALL_HERMES: ${INSTALL_HERMES:-false}
+      INSTALL_QWEN: ${INSTALL_QWEN:-false}
+      INSTALL_KIMI: ${INSTALL_KIMI:-false}
       CURSOR_INSTALL_URL: ${CURSOR_INSTALL_URL:-https://cursor.com/install}
       OPENCODE_INSTALL_URL: ${OPENCODE_INSTALL_URL:-https://opencode.ai/install}
     volumes:
