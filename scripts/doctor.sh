@@ -73,8 +73,13 @@ check_cmd "Xvfb" Xvfb 1 || rc=1
 check_cmd "claude" claude 0 || true
 check_cmd "codex" codex 0 || true
 check_cmd "gemini" gemini 0 || true
+check_cmd "cursor-agent" cursor-agent 0 || true
 check_cmd "cursor" cursor 0 || true
 check_cmd "opencode" opencode 0 || true
+check_cmd "grok" grok 0 || true
+check_cmd "qwen" qwen 0 || true
+check_cmd "kimi" kimi 0 || true
+check_cmd "hermes" hermes 0 || true
 check_cmd "rg" rg 0 || true
 check_cmd "fd" fd 0 || true
 

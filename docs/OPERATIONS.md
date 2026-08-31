@@ -116,9 +116,38 @@ Compose was **not** changed between ports — proves dynamic previews on the Tai
 ### Residual (non-blocking)
 
 - dbus / X11 software bitmap noise in headless logs — expected
-- Cursor CLI still missing (no stable official install URL)
 - Agent provider logins = **Phase F** (run inside Orca shell / Desktop UI)
-- Optional agents (Grok/Hermes/Qwen/Kimi) = Phase G
+
+## Phase G — optional agents (validated)
+
+Installed on volume via `update-agents` / `mup` (no image rebuild):
+
+| Agent | Binary | Source | Version seen |
+|-------|--------|--------|--------------|
+| Cursor Agent | `agent` / `cursor-agent` | https://cursor.com/install | 2026.08.25-3e8eec8 |
+| Grok | `grok` | npm `@xai-official/grok` | 1.0.13 |
+| Hermes | `hermes` | PyPI `hermes-agent` | 0.19.0 |
+| Qwen Code | `qwen` | npm `@qwen-code/qwen-code` | 0.22.3 |
+| Kimi | `kimi` | npm `@moonshot-ai/kimi-code` | 0.39.1 |
+
+Flags (default **on** in compose / `.env.example`):
+
+```text
+INSTALL_CURSOR=true
+INSTALL_GROK=true
+INSTALL_HERMES=true
+INSTALL_QWEN=true
+INSTALL_KIMI=true
+CURSOR_INSTALL_URL=https://cursor.com/install
+```
+
+Re-run:
+
+```bash
+docker compose exec orca mup
+# or agents only:
+docker compose exec orca /scripts/update-agents.sh
+```
 
 ## Sensitive files
 

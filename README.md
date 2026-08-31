@@ -2,7 +2,7 @@
 
 Remote development workstation with headless **Orca Server**, **mise**, AI agents, and private access via a **Tailscale sidecar**.
 
-> Status: Phases A–E + **pair OK** + **Phase H dynamic ports validated**. Phase F (agent logins) is done inside Orca UI/shell by the operator.
+> Status: Phases A–H complete on stack. **Phase F** agent provider logins remain operator-side (inside Orca). Phase G optional agents installed.
 
 **First time here?** Follow the full walkthrough:
 
@@ -139,17 +139,17 @@ State (pairing, projects) lives in `~/.config/{orca,Orca}` — **independent of 
 
 ## Planned agents
 
-| Agent | Default |
-|-------|---------|
-| Claude Code | on |
-| OpenAI Codex CLI | on |
-| Gemini CLI | on |
-| Cursor CLI | on |
-| OpenCode | on |
-| Grok | off (until official install is confirmed) |
-| Hermes | off |
-| Qwen Code | off |
-| Kimi | off |
+| Agent | Default | Install source |
+|-------|---------|----------------|
+| Claude Code | on | npm `@anthropic-ai/claude-code` |
+| OpenAI Codex CLI | on | npm `@openai/codex` |
+| Gemini CLI | on | npm `@google/gemini-cli` |
+| Cursor Agent | on | https://cursor.com/install (`agent` / `cursor-agent`) |
+| OpenCode | on | https://opencode.ai/install |
+| Grok | on | npm `@xai-official/grok` → `grok` |
+| Hermes | on | PyPI `hermes-agent` → `hermes` |
+| Qwen Code | on | npm `@qwen-code/qwen-code` → `qwen` |
+| Kimi | on | npm `@moonshot-ai/kimi-code` → `kimi` |
 
 ## Requirements
 
@@ -301,8 +301,8 @@ See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) §90.
 | C | Orca runtime on volume + update-orca | done |
 | D | Tailscale sidecar + dynamic ports | **done** (pair OK) |
 | E | Agents + **mup** + **in-container** schedule | **done** (claude/codex/gemini/opencode) |
-| F | Host accounts + official Cursor | **operator** (login inside Orca; Cursor install TBD) |
-| G | Optional agents | pending |
+| F | Host accounts + official Cursor | **operator** logins; Cursor Agent install **done** |
+| G | Optional agents (Grok/Hermes/Qwen/Kimi) | **done** (official packages wired + installed) |
 | H | Final hardening + formal dynamic-port test | **done** (9123/9876 via Tailnet 200) |
 
 ## Upgrade

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # install-agents.sh — modular AI CLI installers (official sources only)
 # See docs/IMPLEMENTATION_PLAN.md §12–21, §68–70
+# Mirrors update-agents.sh methods for image build / first seed.
 set -euo pipefail
 
 log() { printf '[install-agents] %s\n' "$*"; }
@@ -70,20 +71,20 @@ install_gemini() {
 
 install_cursor() {
   truthy "${INSTALL_CURSOR:-true}" || { log "SKIP Cursor"; return 0; }
-  # Official installer must be confirmed at implementation time.
-  # Do not guess npm package names.
-  if [[ -n "${CURSOR_INSTALL_URL:-}" ]]; then
-    log "Installing Cursor CLI from CURSOR_INSTALL_URL"
-    curl -fsSL "${CURSOR_INSTALL_URL}" | bash
-    verify_bin cursor || verify_bin cursor-agent || true
+  local url="${CURSOR_INSTALL_URL:-https://cursor.com/install}"
+  log "Installing Cursor Agent from ${url}"
+  if curl -fsSL "${url}" | bash; then
+    if command -v cursor-agent >/dev/null 2>&1 && [[ ! -e "${HOME}/.local/bin/cursor" ]]; then
+      ln -sf "$(command -v cursor-agent)" "${HOME}/.local/bin/cursor"
+    fi
+    verify_bin cursor-agent || verify_bin agent || verify_bin cursor || true
   else
-    warn "Cursor CLI: set CURSOR_INSTALL_URL or implement official method — skipped (build continues)"
+    warn "Cursor CLI install failed — skipped (build continues)"
   fi
 }
 
 install_opencode() {
   truthy "${INSTALL_OPENCODE:-true}" || { log "SKIP OpenCode"; return 0; }
-  # Official installer: https://opencode.ai/install  · npm: opencode-ai
   local url="${OPENCODE_INSTALL_URL:-https://opencode.ai/install}"
   log "Installing OpenCode from ${url}"
   if curl -fsSL "${url}" | bash; then
@@ -103,26 +104,39 @@ install_opencode() {
 
 install_grok() {
   truthy "${INSTALL_GROK:-false}" || { log "SKIP Grok (disabled)"; return 0; }
-  warn "Grok: install only after confirming Orca-expected CLI + official distribution — not implemented"
-  return 0
+  need_npm || return 0
+  install_pkg_npm grok "@xai-official/grok" "${GROK_VERSION:-}" || warn "Grok install failed"
+  verify_bin grok || true
 }
 
 install_hermes() {
   truthy "${INSTALL_HERMES:-false}" || { log "SKIP Hermes (disabled)"; return 0; }
-  warn "Hermes: install only after confirming Orca-supported project + official binary — not implemented"
-  return 0
+  log "Installing hermes-agent (PyPI)"
+  if command -v uv >/dev/null 2>&1; then
+    uv tool install --force hermes-agent ${HERMES_VERSION:+=="${HERMES_VERSION}"} \
+      || uv pip install --python "$(command -v python3)" hermes-agent ${HERMES_VERSION:+=="${HERMES_VERSION}"} \
+      || true
+    if [[ -x "${HOME}/.local/share/uv/tools/hermes-agent/bin/hermes" ]]; then
+      ln -sf "${HOME}/.local/share/uv/tools/hermes-agent/bin/hermes" "${HOME}/.local/bin/hermes"
+    fi
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -m pip install --user hermes-agent ${HERMES_VERSION:+=="${HERMES_VERSION}"} || true
+  fi
+  verify_bin hermes || true
 }
 
 install_qwen() {
   truthy "${INSTALL_QWEN:-false}" || { log "SKIP Qwen (disabled)"; return 0; }
-  warn "Qwen Code: official distribution not configured — not implemented"
-  return 0
+  need_npm || return 0
+  install_pkg_npm qwen "@qwen-code/qwen-code" "${QWEN_VERSION:-}" || warn "Qwen install failed"
+  verify_bin qwen || true
 }
 
 install_kimi() {
   truthy "${INSTALL_KIMI:-false}" || { log "SKIP Kimi (disabled)"; return 0; }
-  warn "Kimi: official distribution not configured — not implemented"
-  return 0
+  need_npm || return 0
+  install_pkg_npm kimi "@moonshot-ai/kimi-code" "${KIMI_VERSION:-}" || warn "Kimi install failed"
+  verify_bin kimi || true
 }
 
 main() {
@@ -139,7 +153,6 @@ main() {
 
   if [[ "${failed}" -ne 0 ]]; then
     warn "One or more primary agents failed to install"
-    # Primary npm agents failing should fail the build
     exit 1
   fi
   log "Agent install pass complete"
