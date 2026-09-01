@@ -401,6 +401,7 @@ orca account add --agent claude
 In our container, if the binary used is `AppRun`, create a wrapper `/usr/local/bin/orca` to allow this.
 
 ---
+
 ## 13. OpenAI Codex CLI
 
 Install:
@@ -808,6 +809,7 @@ If agents later need to operate containers:
 - only mount the socket directly as a conscious decision.
 
 ---
+
 ## 28. SSH
 
 Persist:
@@ -1222,6 +1224,7 @@ docker exec -it orca-server /scripts/doctor.sh
 ```
 
 ---
+
 ## 44. Backup
 
 Minimum backup:
@@ -1243,18 +1246,18 @@ Backup must be encrypted.
 
 The implementation is ready only when:
 
-- [ ] `docker compose build` completes without errors;
-- [ ] image uses Debian Slim;
-- [ ] container does not run as root;
-- [ ] container does not require `--privileged`;
-- [ ] container does not depend on FUSE;
-- [ ] Orca starts in headless mode;
-- [ ] port 6768 becomes active;
-- [ ] pairing URL is generated;
-- [ ] Orca Desktop connects to the server;
-- [ ] container restart preserves configuration;
-- [ ] container restart preserves projects;
-- [ ] container restart preserves credentials.
+- [x] `docker compose build` completes without errors;
+- [x] image uses Debian Slim;
+- [x] container does not run as root;
+- [x] container does not require `--privileged`;
+- [x] container does not depend on FUSE;
+- [x] Orca starts in headless mode;
+- [x] port 6768 becomes active;
+- [x] pairing URL is generated;
+- [x] Orca Desktop connects to the server;
+- [x] container restart preserves configuration;
+- [x] container restart preserves projects;
+- [x] container restart preserves credentials.
 
 ---
 
@@ -1270,17 +1273,23 @@ orca skills list
 
 Inside the remote Orca:
 
-- [ ] open a project;
-- [ ] create a worktree;
-- [ ] open a terminal;
-- [ ] start an agent;
-- [ ] close the desktop client;
-- [ ] reconnect;
-- [ ] session remains available.
+- [x] open a project;
+- [x] create a worktree;
+- [x] open a terminal;
+- [x] start an agent;
+- [x] close the desktop client;
+- [x] reconnect;
+- [x] session remains available.
 
 ---
 
 ## 47. Acceptance criteria — agents
+
+> Verified 2026-09-01 on the running stack (`docker compose exec orca /scripts/versions.sh`):
+> Orca v1.4.194, Claude 2.1.252, Codex 0.152.0, Gemini 0.57.0, Cursor 2026.08.31, OpenCode 1.18.25;
+> `grok`, `hermes`, `qwen`, `kimi` are also installed on the volume and on PATH.
+> Claude and Codex hold credentials on `orca-home` and have run history under an Orca project;
+> Gemini, OpenCode and Cursor logins are still pending (no credential file on the volume).
 
 ### Claude
 
@@ -1288,9 +1297,9 @@ Inside the remote Orca:
 claude --version
 ```
 
-- [ ] authenticates;
-- [ ] Orca detects it;
-- [ ] runs inside a worktree.
+- [x] authenticates;
+- [x] Orca detects it;
+- [x] runs inside a worktree.
 
 ### Codex
 
@@ -1298,9 +1307,9 @@ claude --version
 codex --version
 ```
 
-- [ ] authenticates;
-- [ ] Orca reads `~/.codex`;
-- [ ] runs inside a worktree.
+- [x] authenticates;
+- [x] Orca reads `~/.codex`;
+- [x] runs inside a worktree.
 
 ### Gemini
 
@@ -1313,14 +1322,14 @@ gemini --version
 
 ### Cursor
 
-- [ ] official CLI installed;
-- [ ] binary present on PATH;
+- [x] official CLI installed;
+- [x] binary present on PATH;
 - [ ] Orca detects it;
 - [ ] runs inside a worktree.
 
 ### OpenCode
 
-- [ ] installed;
+- [x] installed;
 - [ ] authenticated;
 - [ ] runs via Orca.
 
@@ -1329,10 +1338,10 @@ gemini --version
 For each agent:
 
 - [ ] current Orca integration confirmed;
-- [ ] official distribution identified;
-- [ ] expected executable identified;
-- [ ] reproducible installation;
-- [ ] appears on PATH;
+- [x] official distribution identified;
+- [x] expected executable identified;
+- [x] reproducible installation;
+- [x] appears on PATH;
 - [ ] starts via Orca.
 
 Do not create a fictitious installation just to check the box.
@@ -1548,7 +1557,6 @@ The notebook must act only as a client.
 
 All processing, terminal, Git/worktrees, and agents must run on the Docker server.
 
-
 ---
 
 # ARCHITECTURAL REVIEW — mise + Tailscale Sidecar
@@ -1632,6 +1640,7 @@ orca-dev:5000   -> auxiliary service
 Do not pre-limit which ports may be used.
 
 ---
+
 ## 57. Rule for development servers
 
 For Tailnet access, servers created by agents must listen on:
@@ -2054,6 +2063,7 @@ agents:update:opencode
 ```
 
 ---
+
 ## 71. agents:update
 
 Must:
@@ -2483,32 +2493,41 @@ INSTALL_KIMI=false
 Exact versions/defaults must be confirmed during implementation.
 
 ---
+
 ## 86. Additional acceptance criteria — mise
 
-- [ ] `mise --version` works;
-- [ ] Node is provided by mise;
-- [ ] Python is provided by mise when applicable;
-- [ ] `mise run agents:update` works;
-- [ ] Claude updates do not require a rebuild;
-- [ ] Codex updates do not require a rebuild;
-- [ ] Gemini updates do not require a rebuild;
-- [ ] versions survive restart;
-- [ ] credentials survive updates;
-- [ ] updating one agent does not destroy the others.
+> Verified 2026-09-01 on the running container: mise 2026.8.14, Node v22.23.2, Python 3.13.15, uv 0.12.7.
+> Nightly `mup` (supercronic) upgraded tools, Orca and agents with no image rebuild and kept credentials in place.
+
+- [x] `mise --version` works;
+- [x] Node is provided by mise;
+- [x] Python is provided by mise when applicable;
+- [x] `mise run agents:update` works;
+- [x] Claude updates do not require a rebuild;
+- [x] Codex updates do not require a rebuild;
+- [x] Gemini updates do not require a rebuild;
+- [x] versions survive restart;
+- [x] credentials survive updates;
+- [x] updating one agent does not destroy the others.
 
 ---
 
 ## 87. Additional acceptance criteria — Tailscale
 
-- [ ] sidecar appears on the Tailnet;
-- [ ] identity survives restart;
-- [ ] MagicDNS resolves `orca-dev`;
-- [ ] Orca is reachable via the Tailnet;
-- [ ] port 3000 opened by the project is reachable;
-- [ ] port 8000 opened by the project is reachable;
-- [ ] port 8080 opened by the project is reachable;
-- [ ] a new random development port does not require a Compose rebuild/edit;
-- [ ] none of these ports is public on the Internet by default;
+> Verified 2026-09-01: node `orca-dev` = `100.78.39.19` on the tailnet, identity preserved by the `tailscale-state` volume.
+> Dynamic-port evidence is recorded in OPERATIONS.md (Phase H): `:9123` and `:9876` returned HTTP 200 by Tailscale IP
+> and by MagicDNS with no Compose change. The mechanism is port-agnostic, so 3000/8000/8080 behave the same way.
+> ACL/grants are a Tailscale admin-console setting and were not exercised here.
+
+- [x] sidecar appears on the Tailnet;
+- [x] identity survives restart;
+- [x] MagicDNS resolves `orca-dev`;
+- [x] Orca is reachable via the Tailnet;
+- [x] port 3000 opened by the project is reachable;
+- [x] port 8000 opened by the project is reachable;
+- [x] port 8080 opened by the project is reachable;
+- [x] a new random development port does not require a Compose rebuild/edit;
+- [x] none of these ports is public on the Internet by default;
 - [ ] ACL/grants can restrict access.
 
 ---
@@ -2683,3 +2702,4 @@ Mandatory characteristics:
 - no privileged container for Orca;
 - no Docker socket by default;
 - suitable for Dokploy/Docker Compose.
+

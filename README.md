@@ -4,6 +4,45 @@ Remote development workstation with headless **Orca Server**, **mise**, AI agent
 
 > Status: Phases A–H complete on stack. **Phase F** agent provider logins remain operator-side (inside Orca). Phase G optional agents installed.
 
+📄 **Site:** <https://chameleonbr.github.io/orca-server/> — overview, layers, ports, security posture, and the [interactive architecture diagram](https://chameleonbr.github.io/orca-server/architecture.html).
+
+🐳 **Image:** `ghcr.io/chameleonbr/orca-server:latest` — see [Container image](#container-image).
+
+## Why this exists
+
+[Orca](https://onorca.dev) ([stablyai/orca](https://github.com/stablyai/orca), MIT) is an AI orchestrator desktop
+app: it runs Codex, Claude Code, OpenCode and friends side by side, each agent in its own git worktree, tracked in
+one place. It already supports remote use — `orca serve` plus the official
+[headless Linux server guide](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md).
+
+What upstream does **not** ship is a container: the releases are AppImage, `.deb`, `.rpm`, `.dmg` and `.exe` only.
+This repo is that missing piece — a reproducible Docker Compose stack that runs `orca serve` headless on a server,
+keeps the AI agent CLIs current, and exposes the whole thing **only** on a private Tailscale tailnet.
+
+## Container image
+
+Published to GHCR by [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) on every push
+to `main` and every `v*` tag (`linux/amd64` — Orca's headless AppImage is x64).
+
+```bash
+docker pull ghcr.io/chameleonbr/orca-server:latest
+```
+
+To run the published image instead of building locally, set it in `.env` and pull:
+
+```text
+ORCA_IMAGE=ghcr.io/chameleonbr/orca-server:latest
+```
+
+```bash
+docker compose pull orca
+docker compose up -d
+```
+
+The image holds Debian, Electron libs, mise, the scripts and the agent CLIs. The **Orca runtime is not baked in** —
+it installs into the `orca-home` volume on first boot and is upgraded with `mup`, so a new Orca release never
+requires a new image.
+
 **First time here?** Follow the full walkthrough:
 
 → **[docs/SETUP.md](docs/SETUP.md)** — initialize Docker Compose, configure `.env`, start the stack, and authenticate (pair) Orca Server from Desktop.

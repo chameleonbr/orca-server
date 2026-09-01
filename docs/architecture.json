@@ -1,0 +1,353 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "orca-server — development architecture",
+    "output": "architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "access",
+        "label": "Access path",
+        "focus": [
+          "desktop",
+          "tailnet",
+          "tsside",
+          "orca"
+        ],
+        "note": "From the laptop to headless Orca: everything stays on the tailnet, nothing published on the host."
+      },
+      {
+        "id": "network",
+        "label": "Network and ports",
+        "focus": [
+          "tsside",
+          "orca",
+          "devports",
+          "dind"
+        ],
+        "note": "One shared netns: Orca on 6768, dynamic preview ports, and the DinD API on loopback only."
+      },
+      {
+        "id": "updates",
+        "label": "Updates without rebuild",
+        "focus": [
+          "upstream",
+          "supervisor",
+          "orca",
+          "agents"
+        ],
+        "note": "supercronic runs mup at 04:15; Orca and the agent CLIs land on the volume, never in the image."
+      },
+      {
+        "id": "state",
+        "label": "Persistence",
+        "focus": [
+          "orca",
+          "home",
+          "ws",
+          "dind"
+        ],
+        "note": "orca-home keeps the runtime, pairing state and credentials; workspace keeps the git repositories."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "desktop",
+      "type": "external",
+      "label": "Orca Desktop",
+      "sublabel": "developer laptop",
+      "tag": "paired client",
+      "pos": [
+        40,
+        288
+      ],
+      "size": [
+        180,
+        76
+      ]
+    },
+    {
+      "id": "tailnet",
+      "type": "security",
+      "label": "Tailscale tailnet",
+      "sublabel": "WireGuard · MagicDNS",
+      "tag": "no public exposure",
+      "pos": [
+        270,
+        288
+      ],
+      "size": [
+        190,
+        76
+      ]
+    },
+    {
+      "id": "upstream",
+      "type": "external",
+      "label": "Official sources",
+      "sublabel": "GitHub · npm · PyPI",
+      "pos": [
+        40,
+        110
+      ],
+      "size": [
+        180,
+        76
+      ]
+    },
+    {
+      "id": "tsside",
+      "type": "cloud",
+      "label": "orca-tailscale",
+      "sublabel": "sidecar · NET_ADMIN",
+      "tag": "owns the netns",
+      "pos": [
+        520,
+        288
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "orca",
+      "type": "backend",
+      "label": "orca-server",
+      "sublabel": "orca serve :6768",
+      "tag": "uid 1000 · no privileged",
+      "pos": [
+        800,
+        288
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": "AI agents",
+      "sublabel": "claude · codex · gemini · opencode",
+      "pos": [
+        1080,
+        110
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "supervisor",
+      "type": "backend",
+      "label": "supervise.sh",
+      "sublabel": "PID 1 · supercronic · mup",
+      "tag": "MUP_CRON 15 4 * * *",
+      "pos": [
+        800,
+        110
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "devports",
+      "type": "frontend",
+      "label": "Preview ports",
+      "sublabel": ":3000 · :5173 · :9123",
+      "tag": "bind 0.0.0.0",
+      "pos": [
+        520,
+        466
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "dind",
+      "type": "cloud",
+      "label": "orca-docker (DinD)",
+      "sublabel": "own daemon · profile dind",
+      "tag": "privileged only here",
+      "brand": "docker",
+      "pos": [
+        800,
+        466
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "home",
+      "type": "database",
+      "label": "volume orca-home",
+      "sublabel": "/home/orca",
+      "tag": "runtime + credentials",
+      "pos": [
+        1080,
+        288
+      ],
+      "size": [
+        200,
+        76
+      ]
+    },
+    {
+      "id": "ws",
+      "type": "database",
+      "label": "volume workspace",
+      "sublabel": "/workspace · git repos",
+      "tag": "mounted in Orca and DinD",
+      "pos": [
+        1080,
+        466
+      ],
+      "size": [
+        200,
+        76
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker host (Compose)",
+      "wraps": [
+        "supervisor",
+        "tsside",
+        "orca",
+        "agents",
+        "devports",
+        "dind",
+        "home",
+        "ws"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "shared netns — network_mode: service:tailscale",
+      "wraps": [
+        "tsside",
+        "orca",
+        "devports",
+        "dind"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "pareamento",
+      "from": "desktop",
+      "to": "tailnet",
+      "label": "orca://pair + WireGuard E2E",
+      "variant": "emphasis",
+      "labelDy": 72
+    },
+    {
+      "id": "magicdns",
+      "from": "tailnet",
+      "to": "tsside",
+      "label": "MagicDNS orca-dev",
+      "labelDx": -70,
+      "labelDy": 72
+    },
+    {
+      "id": "netns",
+      "from": "tsside",
+      "to": "orca",
+      "label": "ws://orca-dev:6768",
+      "variant": "emphasis",
+      "labelDy": 72
+    },
+    {
+      "id": "sessoes",
+      "from": "orca",
+      "to": "agents",
+      "label": "opens CLI sessions"
+    },
+    {
+      "id": "boot",
+      "from": "supervisor",
+      "to": "orca",
+      "label": "starts and recycles Orca",
+      "labelDy": 75
+    },
+    {
+      "id": "downloads",
+      "from": "upstream",
+      "to": "supervisor",
+      "label": "AppImage + CLIs (no rebuild)"
+    },
+    {
+      "id": "preview",
+      "from": "tsside",
+      "to": "devports",
+      "label": "0.0.0.0 → http://orca-dev:<port>",
+      "labelDy": 77
+    },
+    {
+      "id": "dockerhost",
+      "from": "orca",
+      "to": "dind",
+      "label": "DOCKER_HOST tcp://127.0.0.1:2375",
+      "variant": "dashed",
+      "labelDy": 77
+    },
+    {
+      "id": "persistencia",
+      "from": "orca",
+      "to": "home",
+      "label": "runtime, pairing state, creds",
+      "labelDx": 80,
+      "labelDy": 65
+    },
+    {
+      "id": "workspace",
+      "from": "dind",
+      "to": "ws",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Layers and access",
+      "items": [
+        "Desktop pairs with the orca://pair?code=… URL taken from the logs",
+        "The Tailscale sidecar owns the netns; orca-server joins via service:tailscale",
+        "Debian trixie-slim + Electron libs, AppImage extracted (no FUSE)",
+        "The Orca binary lives on the volume — mup upgrades it without a rebuild"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Ports",
+      "items": [
+        ":6768 — Orca serve, bound to 0.0.0.0 inside the sidecar netns",
+        "Any 0.0.0.0:<port> bind becomes http://orca-dev:<port> on the tailnet",
+        ":2375 — DinD API on 127.0.0.1 only, never on the tailnet",
+        "No port published on the Docker host"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Security",
+      "items": [
+        "Runs as uid=1000 (orca); no --privileged on Orca",
+        "No host docker.sock by default — DinD isolated behind profile dind",
+        "ORCA_PAIRING_ADDRESS must be a tailnet name/IP, never 0.0.0.0",
+        "orca-home holds credentials and pairing state: treat backups as secrets"
+      ]
+    }
+  ]
+}

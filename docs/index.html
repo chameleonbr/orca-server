@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>orca-server — remote development workstation</title>
+<meta name="description" content="Headless Orca Server with mise, AI agent CLIs and private access over a Tailscale tailnet. No published ports, no privileged container, updates without an image rebuild.">
+<meta property="og:title" content="orca-server">
+<meta property="og:description" content="Headless Orca Server with mise, AI agent CLIs and private access over a Tailscale tailnet.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128011;</text></svg>">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f8f9;
+    --panel: #ffffff;
+    --ink: #16191d;
+    --muted: #5c6672;
+    --line: #dfe3e8;
+    --accent: #0f8f7a;
+    --accent-soft: #e6f4f1;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0f13;
+      --panel: #13181e;
+      --ink: #e7ecf1;
+      --muted: #93a1b0;
+      --line: #232c36;
+      --accent: #2fd4b5;
+      --accent-soft: #10241f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  code, kbd { font-family: var(--mono); font-size: 0.9em; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header { padding: 64px 0 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 14px;
+  }
+  h1 { font-family: var(--mono); font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 14px; }
+  .tagline { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); margin: 0 0 24px; max-width: 62ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 28px; list-style: none; }
+  .facts li {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: var(--panel);
+  }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: 600; font-size: 15px;
+    padding: 11px 20px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #04120f; }
+  .btn:hover { border-color: var(--accent); }
+
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  h2 { font-family: var(--mono); font-size: 20px; margin: 0 0 6px; }
+  .lede { color: var(--muted); margin: 0 0 24px; max-width: 68ch; }
+
+  .shot { display: block; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot-note {
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--line); padding: 10px 14px;
+  }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .card {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 18px 20px;
+    text-decoration: none; color: inherit; display: block;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card h3 { font-family: var(--mono); font-size: 15px; margin: 0 0 6px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  pre {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.7; margin: 0 0 16px;
+  }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  td code { color: var(--accent); }
+
+  ul.plain { margin: 0; padding-left: 20px; color: var(--muted); }
+  ul.plain li { margin-bottom: 6px; }
+  ul.plain strong { color: var(--ink); font-weight: 600; }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 56px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Remote development workstation</p>
+    <h1>orca-server</h1>
+    <p class="tagline">
+      Headless <strong>Orca Server</strong>, <strong>mise</strong> and AI agent CLIs in a Debian Slim container,
+      reachable only through a <strong>Tailscale</strong> tailnet — no published host ports, no privileged container,
+      and updates that never need an image rebuild.
+    </p>
+    <ul class="facts">
+      <li>Debian trixie-slim</li>
+      <li>no FUSE</li>
+      <li>no --privileged</li>
+      <li>uid 1000</li>
+      <li>no host docker.sock</li>
+      <li>tailnet-only access</li>
+    </ul>
+    <div class="cta">
+      <a class="btn primary" href="architecture.html">Open the interactive architecture &rarr;</a>
+      <a class="btn" href="https://github.com/chameleonbr/orca-server">Repository</a>
+      <a class="btn" href="https://github.com/chameleonbr/orca-server/pkgs/container/orca-server">Container image</a>
+      <a class="btn" href="https://github.com/chameleonbr/orca-server/blob/main/docs/SETUP.md">Setup guide</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>Why this exists</h2>
+    <p class="lede" style="max-width:74ch">
+      <a href="https://onorca.dev">Orca</a> (<a href="https://github.com/stablyai/orca">stablyai/orca</a>, MIT) is an
+      AI orchestrator desktop app: it runs Codex, Claude Code, OpenCode and friends side by side, each agent in its own
+      git worktree, tracked in one place. Remote use is already supported — <code>orca serve</code> plus the official
+      <a href="https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md">headless Linux server guide</a>.
+    </p>
+    <p class="lede" style="max-width:74ch">
+      What upstream does <strong>not</strong> ship is a container — its releases are AppImage, <code>.deb</code>,
+      <code>.rpm</code>, <code>.dmg</code> and <code>.exe</code> only. This project is that missing piece: a reproducible
+      Compose stack that runs <code>orca serve</code> headless on a server, keeps the agent CLIs current, and publishes
+      the whole thing to nothing but a private Tailscale tailnet.
+    </p>
+<pre>docker pull ghcr.io/chameleonbr/orca-server:latest</pre>
+    <p class="lede" style="max-width:74ch">
+      The image carries Debian, Electron libs, mise, the scripts and the agent CLIs. The Orca runtime itself is
+      <em>not</em> baked in — it lands on the <code>orca-home</code> volume at first boot and is upgraded with
+      <code>mup</code>, so a new Orca release never requires a new image.
+    </p>
+  </section>
+
+  <section>
+    <h2>Architecture</h2>
+    <p class="lede">
+      The interactive version has light/dark themes, zoom and pan, search, guided views and PNG/SVG export.
+    </p>
+    <a class="shot" href="architecture.html">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.png">
+        <img src="assets/architecture-light.png" alt="orca-server development architecture: Orca Desktop reaches the Tailscale sidecar over the tailnet, orca-server shares its network namespace, and volumes hold the runtime and the workspace." width="1440" height="900">
+      </picture>
+      <span class="shot-note">
+        <span>Click to open the interactive diagram</span>
+        <span>architecture.html</span>
+      </span>
+    </a>
+  </section>
+
+  <section>
+    <h2>Layers</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>What runs there</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Tailscale</strong></td>
+            <td><code>orca-tailscale</code> sidecar — WireGuard node, MagicDNS name <code>orca-dev</code></td>
+            <td>Owns the network namespace; holds <code>NET_ADMIN</code>/<code>NET_RAW</code> and <code>/dev/net/tun</code></td>
+          </tr>
+          <tr>
+            <td><strong>Orca</strong></td>
+            <td><code>orca-server</code> — <code>orca serve :6768</code> under <code>supervise.sh</code> (PID 1)</td>
+            <td>Joins the sidecar with <code>network_mode: service:tailscale</code>; runs as <code>uid 1000</code></td>
+          </tr>
+          <tr>
+            <td><strong>Agents</strong></td>
+            <td>Claude Code, Codex, Gemini, Cursor Agent, OpenCode (Grok/Hermes/Qwen/Kimi optional)</td>
+            <td>Installed under <code>~/.local</code> on the volume — refreshed by <code>mup</code>, never baked into the image</td>
+          </tr>
+          <tr>
+            <td><strong>Docker</strong></td>
+            <td>Optional <code>orca-docker</code> DinD sidecar (<code>COMPOSE_PROFILES=dind</code>)</td>
+            <td>Separate daemon on <code>127.0.0.1:2375</code>; the host socket is never mounted by default</td>
+          </tr>
+          <tr>
+            <td><strong>State</strong></td>
+            <td>Volumes <code>orca-home</code> and <code>workspace</code></td>
+            <td>Runtime, pairing state and credentials survive restarts and Orca upgrades</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ports</h2>
+    <p class="lede">
+      Compose publishes nothing on the host. Everything listening inside the shared namespace is reachable
+      on the tailnet, and nowhere else.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Port</th><th>Bound to</th><th>Reachable from</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>6768</code></td><td>Orca serve, <code>0.0.0.0</code> in the sidecar netns</td><td><code>ws://orca-dev:6768</code> on the tailnet</td></tr>
+          <tr><td><code>3000</code>, <code>5173</code>, any port</td><td>whatever your project binds to <code>0.0.0.0</code></td><td><code>http://orca-dev:&lt;port&gt;</code> — no Compose edit needed</td></tr>
+          <tr><td><code>2375</code></td><td>DinD API, <code>127.0.0.1</code> only</td><td>loopback inside the namespace — never the tailnet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Security posture</h2>
+    <ul class="plain">
+      <li><strong>Two auth layers.</strong> Desktop &harr; server pairing (<code>orca://pair?code=…</code>), then per-agent provider logins stored on the server volume.</li>
+      <li><strong>No public exposure.</strong> No <code>ports:</code> in the production Compose file; <code>ORCA_PAIRING_ADDRESS</code> must be a tailnet name or IP, never <code>0.0.0.0</code>.</li>
+      <li><strong>Least privilege.</strong> Orca runs as <code>uid 1000</code>, without <code>--privileged</code> and without FUSE; only the optional DinD sidecar is privileged.</li>
+      <li><strong>No host Docker.</strong> <code>/var/run/docker.sock</code> is mounted only by the legacy <code>docker-access</code> profile, which is root-equivalent on the host.</li>
+      <li><strong>Secrets.</strong> <code>.env</code> (with <code>TS_AUTHKEY</code>) is gitignored, and backups of <code>orca-home</code> must be treated as secret material.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Quick start</h2>
+<pre>cp .env.example .env
+# set TS_AUTHKEY, ORCA_PAIRING_ADDRESS (tailnet name/IP), GIT_USER_NAME, GIT_USER_EMAIL
+
+docker compose build
+docker compose up -d
+docker compose logs orca 2>&amp;1 | grep 'Pairing URL'</pre>
+    <p class="lede">
+      Paste the pairing URL into Orca Desktop under <em>Settings &rarr; Remote Orca Servers &rarr; Add Server</em>,
+      then authenticate the agent CLIs on the server. Update everything later with one command:
+    </p>
+<pre>docker compose exec orca mup</pre>
+    <p class="lede">
+      To skip the local build, point Compose at the published image:
+    </p>
+<pre>echo 'ORCA_IMAGE=ghcr.io/chameleonbr/orca-server:latest' &gt;&gt; .env
+docker compose pull orca
+docker compose up -d</pre>
+  </section>
+
+  <section>
+    <h2>Documentation</h2>
+    <div class="grid">
+      <a class="card" href="https://github.com/chameleonbr/orca-server/blob/main/docs/SETUP.md">
+        <h3>SETUP.md</h3>
+        <p>Clean machine to a paired server: env, Tailscale, first boot, pairing, agent logins, troubleshooting.</p>
+      </a>
+      <a class="card" href="https://github.com/chameleonbr/orca-server/blob/main/docs/OPERATIONS.md">
+        <h3>OPERATIONS.md</h3>
+        <p>Day-2 ops: <code>mup</code>, Orca upgrade and rollback, agent accounts, dynamic ports, validation records.</p>
+      </a>
+      <a class="card" href="https://github.com/chameleonbr/orca-server/blob/main/docs/IMPLEMENTATION_PLAN.md">
+        <h3>IMPLEMENTATION_PLAN.md</h3>
+        <p>The full specification and acceptance criteria the stack was built and validated against.</p>
+      </a>
+      <a class="card" href="architecture.html">
+        <h3>architecture.html</h3>
+        <p>Interactive diagram — layers, ports, security boundaries and the update path, with guided views.</p>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <a href="https://github.com/chameleonbr/orca-server">github.com/chameleonbr/orca-server</a> ·
+      Orca binaries come from the official <a href="https://github.com/stablyai/orca/releases">stablyai/orca</a> releases.
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>
