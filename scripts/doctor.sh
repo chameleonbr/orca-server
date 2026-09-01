@@ -82,6 +82,15 @@ check_cmd "kimi" kimi 0 || true
 check_cmd "hermes" hermes 0 || true
 check_cmd "rg" rg 0 || true
 check_cmd "fd" fd 0 || true
+check_cmd "docker CLI" docker 0 || true
+if command -v docker >/dev/null 2>&1; then
+  echo "DOCKER_HOST=${DOCKER_HOST:-<default unix socket>}"
+  if docker info >/dev/null 2>&1; then
+    ok "docker daemon reachable ($(docker info --format '{{.ServerVersion}}' 2>/dev/null || echo ok))"
+  else
+    skip "docker daemon not reachable — enable profile dind (COMPOSE_PROFILES=dind) or set DOCKER_HOST"
+  fi
+fi
 
 echo
 if command -v ss >/dev/null 2>&1; then

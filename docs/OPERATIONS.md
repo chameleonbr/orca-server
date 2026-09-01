@@ -27,6 +27,33 @@ Everything runs **inside the container**. The host only runs `docker compose up/
 
 The link is a **v2 offer** (endpoint + deviceToken + publicKey) in Base64URL.
 
+## Internal Docker (DinD sidecar)
+
+Agents can build/run containers **without** mounting the host Docker socket.
+
+| Piece | Role |
+|-------|------|
+| Service `docker` (profile **`dind`**) | Separate Docker daemon (privileged **only** here) |
+| Orca image | Docker CLI + Compose plugin |
+| `DOCKER_HOST` | `tcp://127.0.0.1:2375` (shared Tailscale netns, loopback only) |
+| Volume `docker-data` | DinD images/layers |
+| Volume `workspace` | Mounted into DinD at `/workspace` so build contexts match |
+
+```bash
+# Enable
+echo 'COMPOSE_PROFILES=dind' >> .env   # or export for one shot
+docker compose up -d
+
+# Verify from Orca
+docker compose exec orca docker info
+docker compose exec orca docker run --rm hello-world
+docker compose exec orca docker build /workspace/my-app
+```
+
+**Do not** bind dockerd to `0.0.0.0` — that would expose the Docker API on the Tailnet.
+
+Legacy host socket: profile `docker-access` (avoid; root-equivalent on the host).
+
 ## Agent accounts (next operational step)
 
 The CLI `orca account *` **cannot** start a second process while `orca serve` is running
@@ -103,7 +130,10 @@ Compose was **not** changed between ports — proves dynamic previews on the Tai
 | Check | Result |
 |-------|--------|
 | Host `ports:` published | **none** in rendered compose |
-| `--privileged` / docker.sock default | **absent** |
+| Host `docker.sock` default | **absent** (use profile `dind`) |
+| `--privileged` on Orca | **absent** |
+| DinD sidecar privileged | **only** with `COMPOSE_PROFILES=dind` |
+| DinD API bind | `127.0.0.1:2375` (not Tailnet) |
 | Process user | `uid=1000(orca)` |
 | `.env` in git | **ignored** |
 | Orca FUSE / privileged | **not used** |

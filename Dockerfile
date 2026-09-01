@@ -120,6 +120,16 @@ RUN chmod +x /tmp/install-supercronic.sh \
  && SUPERCRONIC_VERSION="${SUPERCRONIC_VERSION}" /tmp/install-supercronic.sh \
  && rm -f /tmp/install-supercronic.sh
 
+# Docker CLI only (daemon is optional dind sidecar — profile "dind")
+ARG DOCKER_CLI_VERSION=27.5.1
+ARG DOCKER_COMPOSE_VERSION=2.32.4
+COPY scripts/install-docker-cli.sh /tmp/install-docker-cli.sh
+RUN chmod +x /tmp/install-docker-cli.sh \
+ && DOCKER_CLI_VERSION="${DOCKER_CLI_VERSION}" \
+    DOCKER_COMPOSE_VERSION="${DOCKER_COMPOSE_VERSION}" \
+    /tmp/install-docker-cli.sh \
+ && rm -f /tmp/install-docker-cli.sh
+
 COPY scripts/ /scripts/
 COPY config/mise.toml /opt/orca-server/mise.toml
 COPY config/mup.crontab /opt/orca-server/mup.crontab

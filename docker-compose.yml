@@ -1,9 +1,13 @@
-# Orca remote workstation: Tailscale sidecar + orca-dev sharing net namespace.
+# Orca remote workstation: Tailscale sidecar + orca sharing net namespace.
 # No host port publishing by default — access via Tailnet / MagicDNS.
 #
 # Orca binary lives in the orca-home volume and is upgraded without image rebuild:
 #   docker compose exec orca /scripts/update-orca.sh
 #   docker compose restart orca
+#
+# Optional internal Docker (separate daemon — NOT host docker.sock):
+#   COMPOSE_PROFILES=dind docker compose up -d
+#   → service "docker" (DinD) shares Tailscale netns; CLI uses DOCKER_HOST=tcp://127.0.0.1:2375
 
 services:
   tailscale:
@@ -29,6 +33,38 @@ services:
       retries: 5
       start_period: 40s
 
+  # Separate Docker daemon (DinD). Privileged ONLY here — never on Orca.
+  # Shares Tailscale netns so Orca reaches the API on loopback (not published on Tailnet).
+  docker:
+    profiles: ["dind"]
+    image: docker:${DOCKER_DIND_VERSION:-27-dind}
+    container_name: orca-docker
+    network_mode: "service:tailscale"
+    privileged: true
+    environment:
+      # Empty = no TLS; we bind 127.0.0.1 only (see command).
+      DOCKER_TLS_CERTDIR: ""
+    command:
+      - dockerd
+      - --host=unix:///var/run/docker.sock
+      - --host=tcp://127.0.0.1:2375
+      - --storage-driver=overlay2
+      - --tls=false
+    volumes:
+      - docker-data:/var/lib/docker
+      # Same workspace path as Orca so `docker build /workspace/...` works
+      - workspace:/workspace
+    depends_on:
+      tailscale:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
   orca:
     build:
       context: .
@@ -42,6 +78,8 @@ services:
         NODE_VERSION: ${NODE_VERSION:-22}
         PYTHON_VERSION: ${PYTHON_VERSION:-3.13}
         UV_VERSION: ${UV_VERSION:-latest}
+        DOCKER_CLI_VERSION: ${DOCKER_CLI_VERSION:-27.5.1}
+        DOCKER_COMPOSE_VERSION: ${DOCKER_COMPOSE_VERSION:-2.32.4}
         INSTALL_CLAUDE: ${INSTALL_CLAUDE:-true}
         INSTALL_CODEX: ${INSTALL_CODEX:-true}
         INSTALL_GEMINI: ${INSTALL_GEMINI:-true}
@@ -73,6 +111,8 @@ services:
       AUTO_UPDATE_AGENTS: ${AUTO_UPDATE_AGENTS:-false}
       TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-orca-dev}
       LIBGL_ALWAYS_SOFTWARE: "1"
+      # Docker client → internal DinD (profile dind). Loopback only in shared netns.
+      DOCKER_HOST: ${DOCKER_HOST:-tcp://127.0.0.1:2375}
       # Git identity (also applied by entrypoint → ~/.gitconfig on volume)
       GIT_USER_NAME: ${GIT_USER_NAME:-}
       GIT_USER_EMAIL: ${GIT_USER_EMAIL:-}
@@ -96,12 +136,15 @@ services:
     # First boot may download ~200MB AppImage into the volume
     stop_grace_period: 30s
 
-  # Optional: mount host Docker socket (root-equivalent on host — explicit opt-in)
+  # LEGACY / last resort: mount host Docker socket (root-equivalent on host).
+  # Prefer profile "dind" (separate daemon). Enable: COMPOSE_PROFILES=docker-access
   orca-docker-access:
     profiles: ["docker-access"]
     extends:
       service: orca
     container_name: orca-server-docker
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
     volumes:
       - orca-home:/home/orca
       - workspace:/workspace
@@ -111,3 +154,4 @@ volumes:
   tailscale-state:
   orca-home:
   workspace:
+  docker-data:

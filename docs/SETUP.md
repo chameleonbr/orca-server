@@ -19,13 +19,22 @@ Your laptop (Orca Desktop)
         │
      Tailscale
         │
-┌───────▼────────────────┐
-│ Docker host            │
-│  ├─ orca-tailscale     │  MagicDNS: orca-dev
-│  └─ orca-server        │  ws://orca-dev:6768  (shared netns)
-│       HOME volume      │  Orca binary + pair state + agent creds
-│       /workspace       │  git repos
-└────────────────────────┘
+┌───────▼──────────────────────────────┐
+│ Docker host                          │
+│  ├─ orca-tailscale                   │  MagicDNS: orca-dev
+│  ├─ orca-docker (optional profile)   │  DinD → 127.0.0.1:2375 in shared netns
+│  └─ orca-server                      │  ws://orca-dev:6768  (shared netns)
+│       HOME volume                    │  Orca binary + pair state + agent creds
+│       /workspace                     │  git repos (+ same path in DinD)
+└──────────────────────────────────────┘
+```
+
+Optional internal Docker (separate daemon, not host `docker.sock`):
+
+```bash
+# in .env
+COMPOSE_PROFILES=dind
+DOCKER_HOST=tcp://127.0.0.1:2375
 ```
 
 Authentication has **two layers**:

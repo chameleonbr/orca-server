@@ -243,6 +243,7 @@ See [`.env.example`](.env.example).
 | `orca-home` | `/home/orca` | **Orca runtime**, credentials, mise, configs |
 | `workspace` | `/workspace` | repositories and worktrees |
 | `tailscale-state` | `/var/lib/tailscale` | Tailscale node identity |
+| `docker-data` | `/var/lib/docker` (DinD) | Images/containers of the **internal** Docker (profile `dind`) |
 
 **Do not version** `data/` or `.env`. Backups of `orca-home` contain secrets — encrypt them.
 
@@ -252,14 +253,23 @@ See [`.env.example`](.env.example).
 - Access via Tailnet: `http://orca-dev:6768`, `http://orca-dev:3000`, etc.
 - Dev servers must listen on `0.0.0.0` (not only `127.0.0.1`)
 - Optional: Tailscale Serve; **do not** use Funnel by default
-- Profile `docker-access` for the socket (elevated risk)
+- **Internal Docker (recommended):** profile `dind` — separate DinD sidecar, CLI in Orca via `DOCKER_HOST=tcp://127.0.0.1:2375`
+- **Host socket (legacy):** profile `docker-access` — mounts host `/var/run/docker.sock` (root-equivalent on host; avoid)
+
+```bash
+# Enable separate Docker daemon inside the stack
+COMPOSE_PROFILES=dind docker compose up -d
+docker compose exec orca docker info
+docker compose exec orca docker run --rm hello-world
+```
 
 ## Security
 
 - Non-root Orca process (`user: orca`)
-- No `--privileged` for Orca
+- No `--privileged` for Orca (only the optional `docker` DinD sidecar)
 - No FUSE
-- No Docker socket by default
+- No host Docker socket by default
+- DinD API on **loopback only** (`127.0.0.1:2375`) in the shared Tailscale netns — not Tailnet-wide
 - Secrets kept out of the image
 - Orca port only on the Tailnet / private network
 
