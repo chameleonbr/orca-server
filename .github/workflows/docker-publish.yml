@@ -1,0 +1,64 @@
+name: Publish container image
+
+# Builds the headless Orca workstation image and pushes it to GHCR.
+# The Orca AppImage itself is NOT baked in — it installs into the orca-home
+# volume on first boot and is upgraded with `mup` / `update-orca`.
+
+on:
+  # No path filter on purpose: GitHub ANDs `paths` with `tags`, which would
+  # silently skip release-tag builds. Layer caching keeps doc-only pushes cheap.
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=orca-server
+            org.opencontainers.image.description=Headless Orca Server workstation — mise, AI agent CLIs, Tailscale sidecar
+            org.opencontainers.image.licenses=MIT
+
+      # Orca ships a linux x64 AppImage for this flow, so amd64 only.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

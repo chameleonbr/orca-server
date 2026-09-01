@@ -89,7 +89,9 @@ services:
         INSTALL_HERMES: ${INSTALL_HERMES:-false}
         INSTALL_QWEN: ${INSTALL_QWEN:-false}
         INSTALL_KIMI: ${INSTALL_KIMI:-false}
-    image: orca-server:local
+    # Build locally by default; set ORCA_IMAGE=ghcr.io/chameleonbr/orca-server:latest
+    # in .env to pull the published image instead (docker compose pull orca).
+    image: ${ORCA_IMAGE:-orca-server:local}
     container_name: orca-server
     network_mode: "service:tailscale"
     depends_on:
