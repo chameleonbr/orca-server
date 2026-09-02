@@ -6,7 +6,11 @@ Remote development workstation with headless **Orca Server**, **mise**, AI agent
 
 📄 **Site:** <https://chameleonbr.github.io/orca-server/> — overview, layers, ports, security posture, and the [interactive architecture diagram](https://chameleonbr.github.io/orca-server/architecture.html).
 
-🐳 **Image:** `ghcr.io/chameleonbr/orca-server:latest` — see [Container image](#container-image).
+🐳 **Image:** [`ghcr.io/chameleonbr/orca-server`](https://github.com/chameleonbr/orca-server/pkgs/container/orca-server) — see [Container image](#container-image).
+
+[![Publish container image](https://github.com/chameleonbr/orca-server/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/chameleonbr/orca-server/actions/workflows/docker-publish.yml)
+[![GHCR](https://img.shields.io/badge/ghcr.io-chameleonbr%2Forca--server-2496ED?logo=docker&logoColor=white)](https://github.com/chameleonbr/orca-server/pkgs/container/orca-server)
+[![Site](https://img.shields.io/badge/docs-chameleonbr.github.io-0f8f7a)](https://chameleonbr.github.io/orca-server/)
 
 ## Why this exists
 
@@ -21,12 +25,22 @@ keeps the AI agent CLIs current, and exposes the whole thing **only** on a priva
 
 ## Container image
 
+**Package:** <https://github.com/chameleonbr/orca-server/pkgs/container/orca-server>
+
 Published to GHCR by [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) on every push
-to `main` and every `v*` tag (`linux/amd64` — Orca's headless AppImage is x64).
+to `main` and every `v*` tag (`linux/amd64` — Orca's headless AppImage is x64). The package is public: no
+`docker login` needed to pull.
 
 ```bash
 docker pull ghcr.io/chameleonbr/orca-server:latest
 ```
+
+| Tag | Points at |
+|-----|-----------|
+| `latest` | last build of `main` |
+| `main` | same, branch-named |
+| `sha-<short>` | one exact commit (e.g. `sha-c62ec29`) |
+| `1.2.3`, `1.2` | pushed `v*` release tags |
 
 To run the published image instead of building locally, set it in `.env` and pull:
 
