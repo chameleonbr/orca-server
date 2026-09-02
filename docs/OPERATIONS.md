@@ -109,6 +109,29 @@ docker compose exec orca python3 -m http.server 9123 --bind 0.0.0.0
 # on another Tailnet device: http://orca-dev:9123
 ```
 
+## More than one workstation on the same host
+
+No service sets `container_name`, so Compose names containers
+`<project>-<service>-<n>` (`orca-server-orca-1`, `orca-server-tailscale-1`).
+A second stack is a different project plus a unique tailnet name:
+
+```bash
+TAILSCALE_HOSTNAME=orca-b ORCA_PAIRING_ADDRESS=orca-b TS_AUTHKEY=... \
+  docker compose -p orca-b up -d
+```
+
+Each stack gets its own Tailscale sidecar, so its own network namespace and
+its own tailnet node — `:6768`, the dev ports and the DinD API on
+`127.0.0.1:2375` do **not** collide between stacks, and volumes are prefixed
+per project (`orca-b_orca-home`, `orca-b_workspace`).
+
+Ports only collide *inside* one stack, where Orca and the DinD containers
+share a namespace: two publishes of the same port, or a publish over `:6768`,
+fail with `address already in use`.
+
+Address containers by service name (`docker compose exec orca …`,
+`docker compose logs -f orca`) rather than by container name.
+
 ## Phase H — hardening + dynamic ports (validated)
 
 Recorded on host stack (`orca-dev` / `100.78.39.19`).

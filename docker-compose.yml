@@ -9,10 +9,13 @@
 #   COMPOSE_PROFILES=dind docker compose up -d
 #   → service "docker" (DinD) shares Tailscale netns; CLI uses DOCKER_HOST=tcp://127.0.0.1:2375
 
+# No container_name on purpose: Compose names containers <project>-<service>-<n>,
+# so a second workstation is just a different project + tailnet hostname:
+#   TAILSCALE_HOSTNAME=orca-b ORCA_PAIRING_ADDRESS=orca-b docker compose -p orca-b up -d
+
 services:
   tailscale:
     image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
-    container_name: orca-tailscale
     hostname: ${TAILSCALE_HOSTNAME:-orca-dev}
     environment:
       TS_AUTHKEY: ${TS_AUTHKEY}
@@ -38,7 +41,6 @@ services:
   docker:
     profiles: ["dind"]
     image: docker:${DOCKER_DIND_VERSION:-27-dind}
-    container_name: orca-docker
     network_mode: "service:tailscale"
     privileged: true
     environment:
@@ -92,7 +94,6 @@ services:
     # Build locally by default; set ORCA_IMAGE=ghcr.io/chameleonbr/orca-server:latest
     # in .env to pull the published image instead (docker compose pull orca).
     image: ${ORCA_IMAGE:-orca-server:local}
-    container_name: orca-server
     network_mode: "service:tailscale"
     depends_on:
       tailscale:
@@ -144,7 +145,6 @@ services:
     profiles: ["docker-access"]
     extends:
       service: orca
-    container_name: orca-server-docker
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
     volumes:

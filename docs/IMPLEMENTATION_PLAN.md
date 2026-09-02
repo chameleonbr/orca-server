@@ -382,7 +382,7 @@ claude --version
 Authentication must occur after the container is running:
 
 ```bash
-docker exec -it orca-server bash
+docker compose exec -it orca bash
 claude
 ```
 
@@ -719,7 +719,8 @@ services:
   orca:
     build:
       context: .
-    container_name: orca-server
+    # No container_name: Compose names it <project>-orca-1, so a second stack
+    # can run side by side (docker compose -p orca-b up -d).
     restart: unless-stopped
 
     environment:
@@ -1034,7 +1035,7 @@ Do not create an internal log file as the primary mechanism.
 Allow:
 
 ```bash
-docker logs -f orca-server
+docker compose logs -f orca
 ```
 
 The pairing URL emitted by `orca serve` must appear in the logs.
@@ -1060,7 +1061,7 @@ Then:
 ```bash
 docker compose build
 docker compose up -d
-docker logs -f orca-server
+docker compose logs -f orca
 ```
 
 Copy the pairing URL shown by Orca.
@@ -1081,7 +1082,7 @@ Settings
 After first boot:
 
 ```bash
-docker exec -it orca-server bash
+docker compose exec -it orca bash
 ```
 
 Run the required authentication:
@@ -1220,7 +1221,7 @@ Add a quick command:
 or:
 
 ```bash
-docker exec -it orca-server /scripts/doctor.sh
+docker compose exec orca /scripts/doctor.sh
 ```
 
 ---
@@ -1548,7 +1549,7 @@ cp .env.example .env
 
 docker compose build
 docker compose up -d
-docker logs -f orca-server
+docker compose logs -f orca
 ```
 
 Then connect Orca Desktop to the pairing URL and use multiple agents on the remote server.
@@ -2169,7 +2170,7 @@ Log clearly.
 Recommended flow:
 
 ```bash
-docker exec -it orca-server bash
+docker compose exec -it orca bash
 mise run agents:update
 ```
 
